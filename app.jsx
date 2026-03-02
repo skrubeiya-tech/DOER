@@ -1,0 +1,1996 @@
+import { useState, useRef, useEffect, useCallback } from “react”;
+
+const DAY_NAMES = [“Sunday”,“Monday”,“Tuesday”,“Wednesday”,“Thursday”,“Friday”,“Saturday”];
+const DAY_SHORT = [“Sun”,“Mon”,“Tue”,“Wed”,“Thu”,“Fri”,“Sat”];
+const MONTH_NAMES = [“January”,“February”,“March”,“April”,“May”,“June”,“July”,“August”,“September”,“October”,“November”,“December”];
+const today = new Date();
+const CURRENT_YEAR = today.getFullYear();
+const RAMZAN_START = new Date(CURRENT_YEAR, 2, 1);
+const RAMZAN_END   = new Date(CURRENT_YEAR, 2, 30);
+function isRamzan(date) { return date >= RAMZAN_START && date <= RAMZAN_END; }
+
+const inp   = (color, T) => ({ background: T.isDark ? “rgba(0,0,0,0.4)” : “rgba(255,255,255,0.85)”, border: `1px solid ${color}33`, borderRadius: 6, color: T.text, fontFamily: “‘Georgia’,serif”, fontSize: 16, padding: “6px 8px”, width: “100%”, boxSizing: “border-box”, outline: “none” });
+const ghost = (color, T) => ({ width: “100%”, marginTop: 4, background: “transparent”, border: `1px dashed ${color}${T.isDark ? "33" : "55"}`, borderRadius: 6, color: `${color}${T.isDark ? "66" : "99"}`, cursor: “pointer”, fontFamily: “‘Georgia’,serif”, fontSize: 10, padding: “5px”, letterSpacing: 1 });
+
+// ── WORKOUT PRESETS ───────────────────────────────────────────────────────────
+const WORKOUT_PRESETS = [
+{ id: “strength”,    label: “Strength”,    icon: “🏋️”, fields: [{ key: “muscle”, placeholder: “Muscle group”, multiline: false }, { key: “weight”, placeholder: “Weight (kgs)”, multiline: false }, { key: “notes”, placeholder: “Exercises & sets…”, multiline: true }] },
+{ id: “cardio”,      label: “Cardio”,      icon: “🏃”,  fields: [{ key: “distance”, placeholder: “Distance (km)”, multiline: false }, { key: “duration”, placeholder: “Duration (mins)”, multiline: false }, { key: “notes”, placeholder: “Route / how it felt…”, multiline: true }] },
+{ id: “hiit”,        label: “HIIT”,        icon: “⚡”,  fields: [{ key: “rounds”, placeholder: “Rounds”, multiline: false }, { key: “duration”, placeholder: “Duration (mins)”, multiline: false }, { key: “notes”, placeholder: “Exercises done…”, multiline: true }] },
+{ id: “yoga”,        label: “Yoga”,        icon: “🧘”,  fields: [{ key: “style”, placeholder: “Style (Vinyasa, Yin…)”, multiline: false }, { key: “duration”, placeholder: “Duration (mins)”, multiline: false }, { key: “notes”, placeholder: “Focus / how it felt…”, multiline: true }] },
+{ id: “martial”,     label: “Martial Arts”,icon: “🥋”,  fields: [{ key: “style”, placeholder: “Style (BJJ, Boxing…)”, multiline: false }, { key: “rounds”, placeholder: “Rounds / sparring”, multiline: false }, { key: “notes”, placeholder: “Techniques drilled…”, multiline: true }] },
+{ id: “calisthenics”,label: “Calisthenics”,icon: “💪”,  fields: [{ key: “skill”, placeholder: “Skill / focus”, multiline: false }, { key: “notes”, placeholder: “Reps & progressions…”, multiline: true }] },
+{ id: “swimming”,    label: “Swimming”,    icon: “🏊”,  fields: [{ key: “laps”, placeholder: “Laps”, multiline: false }, { key: “duration”, placeholder: “Duration (mins)”, multiline: false }, { key: “notes”, placeholder: “Stroke / notes…”, multiline: true }] },
+{ id: “cycling”,     label: “Cycling”,     icon: “🚴”,  fields: [{ key: “distance”, placeholder: “Distance (km)”, multiline: false }, { key: “duration”, placeholder: “Duration (mins)”, multiline: false }, { key: “notes”, placeholder: “Route / elevation…”, multiline: true }] },
+{ id: “running”,     label: “Running”,     icon: “👟”,  fields: [{ key: “distance”, placeholder: “Distance (km)”, multiline: false }, { key: “pace”, placeholder: “Pace (min/km)”, multiline: false }, { key: “notes”, placeholder: “Route / how it felt…”, multiline: true }] },
+{ id: “sports”,      label: “Sports”,      icon: “⚽”,  fields: [{ key: “sport”, placeholder: “Sport name”, multiline: false }, { key: “duration”, placeholder: “Duration (mins)”, multiline: false }, { key: “notes”, placeholder: “Performance notes…”, multiline: true }] },
+{ id: “custom”,      label: “Custom”,      icon: “✨”,  fields: [{ key: “name”, placeholder: “What did you do?”, multiline: false }, { key: “notes”, placeholder: “Details…”, multiline: true }] },
+];
+
+function makeWorkoutSession(typeId = “strength”) {
+return { id: String(Date.now()) + Math.random().toString(36).slice(2), typeId, done: false, data: {}, customName: “” };
+}
+
+// ── PRACTICE PRESETS ──────────────────────────────────────────────────────────
+const PRACTICE_PRESETS = [
+{ id: “islam”,       label: “Islam”,       icon: “🌙”, items: [“Tahajjud”,“Fajr”,“Zuhr”,“Asr”,“Maghrib”,“Isha”], extras: [{ key: “taraweeh”, label: “Taraweeh” }, { key: “dhikr1000”, label: “Dhikr 1000” }, { key: “isthikfar”, label: “Isthikfar” }] },
+{ id: “christianity”,label: “Christianity”,icon: “✝️”, items: [“Morning Prayer”,“Bible Reading”,“Evening Prayer”,“Gratitude”,“Church/Mass”] },
+{ id: “hinduism”,    label: “Hinduism”,    icon: “🕉️”,items: [“Morning Puja”,“Mantra Chanting”,“Meditation”,“Evening Aarti”,“Yoga”] },
+{ id: “buddhism”,    label: “Buddhism”,    icon: “☸️”, items: [“Sitting Meditation”,“Walking Meditation”,“Dharma Study”,“Loving Kindness”,“Evening Reflection”] },
+{ id: “judaism”,     label: “Judaism”,     icon: “✡️”, items: [“Shacharit”,“Mincha”,“Maariv”,“Torah Study”,“Shabbat Prep”] },
+{ id: “yoga”,        label: “Yoga”,        icon: “🧘”, items: [“Asana Practice”,“Pranayama”,“Meditation”,“Savasana”,“Journaling”] },
+{ id: “reading”,     label: “Reading”,     icon: “📚”, items: [“Morning Read”,“Afternoon Read”,“Evening Read”,“Take Notes”,“Review/Reflect”] },
+{ id: “mindfulness”, label: “Mindfulness”, icon: “🌿”, items: [“Morning Intention”,“Breathwork”,“Body Scan”,“Gratitude Journal”,“Digital Detox”] },
+{ id: “stoicism”,    label: “Stoicism”,    icon: “⚖️”, items: [“Morning Reflection”,“Negative Visualisation”,“Journaling”,“Evening Review”,“Memento Mori”] },
+{ id: “custom”,      label: “Custom”,      icon: “✨”, items: [] },
+];
+
+// ── SELF HABIT PRESETS ────────────────────────────────────────────────────────
+const SELF_HABITS = [
+{ id: “water”,       label: “Drink Water”,    icon: “💧”, log: [{ key: “glasses”, placeholder: “Glasses drank (target 8)”, multiline: false }] },
+{ id: “sleep”,       label: “Sleep Early”,    icon: “😴”, log: [{ key: “bedtime”, placeholder: “Bedtime”, multiline: false }, { key: “wake”, placeholder: “Wake time”, multiline: false }, { key: “quality”, placeholder: “Quality 1–5”, multiline: false }] },
+{ id: “journal”,     label: “Journal”,        icon: “📓”, log: [{ key: “entry”, placeholder: “Write today’s entry…”, multiline: true }] },
+{ id: “gratitude”,   label: “Be Grateful”,    icon: “🙏”, log: [{ key: “g1”, placeholder: “Grateful for…”, multiline: false }, { key: “g2”, placeholder: “Grateful for…”, multiline: false }, { key: “g3”, placeholder: “Grateful for…”, multiline: false }] },
+{ id: “mood”,        label: “Mood”,           icon: “😌”, log: [{ key: “mood”, placeholder: “Mood 1–10”, multiline: false }, { key: “note”, placeholder: “How are you feeling?”, multiline: true }] },
+{ id: “sunlight”,    label: “Get Sunlight”,   icon: “☀️”, log: [] },
+{ id: “coldshower”,  label: “Cold Shower”,    icon: “🚿”, log: [{ key: “duration”, placeholder: “Duration (mins)”, multiline: false }] },
+{ id: “reading”,     label: “Read”,           icon: “📚”, log: [{ key: “pages”, placeholder: “Pages read”, multiline: false }, { key: “book”, placeholder: “Book title”, multiline: false }] },
+{ id: “skincare”,    label: “Skincare”,       icon: “✨”, log: [{ key: “am”, placeholder: “AM done?”, multiline: false }, { key: “pm”, placeholder: “PM done?”, multiline: false }] },
+{ id: “screentime”,  label: “Limit Screens”,  icon: “📵”, log: [{ key: “hours”, placeholder: “Hours on screen”, multiline: false }] },
+{ id: “nosocial”,    label: “No Social”,      icon: “🔕”, log: [{ key: “mins”, placeholder: “Mins before first check”, multiline: false }] },
+{ id: “meditation”,  label: “Meditate”,       icon: “🧘”, log: [{ key: “duration”, placeholder: “Duration (mins)”, multiline: false }, { key: “notes”, placeholder: “How was it?”, multiline: true }] },
+{ id: “vitamins”,    label: “Take Vitamins”,  icon: “💊”, log: [{ key: “taken”, placeholder: “What did you take?”, multiline: false }] },
+{ id: “family”,      label: “Call Family”,    icon: “❤️”, log: [{ key: “who”, placeholder: “Who did you call?”, multiline: false }] },
+{ id: “kindness”,    label: “Do Good”,        icon: “🤝”, log: [{ key: “what”, placeholder: “What did you do?”, multiline: false }] },
+{ id: “nophone”,     label: “No Phone Bed”,   icon: “🌙”, log: [] },
+{ id: “tidy”,        label: “Tidy Up”,        icon: “🏠”, log: [] },
+{ id: “custom”,      label: “Custom”,         icon: “⭐”, log: [{ key: “note”, placeholder: “Log anything…”, multiline: true }] },
+];
+
+const DEFAULT_SELF_HABITS = [“skincare”, “water”, “tidy”];
+
+const CAT_DARK  = { fitness: { label: “FITNESS”, color: “#c8a96e” }, faith: { label: “FAITH”, color: “#7eb8c9” }, work: { label: “WORK”, color: “#a78bfa” }, self: { label: “SELF”, color: “#6ee7b7” }, toxins: { label: “DISCIPLINE”, color: “#f87171” } };
+const CAT_LIGHT = { fitness: { label: “FITNESS”, color: “#b07d2e” }, faith: { label: “FAITH”, color: “#2a7fa8” }, work: { label: “WORK”, color: “#7c3aed” }, self: { label: “SELF”, color: “#059669” }, toxins: { label: “DISCIPLINE”, color: “#dc2626” } };
+
+function dateKey(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+const DEFAULT_PRACTICE = PRACTICE_PRESETS[0];
+
+function makeTodayTask(label = “”) {
+return { id: String(Date.now()) + Math.random().toString(36).slice(2), label, done: false };
+}
+function makeAddiction(name) {
+return { id: “add_” + String(Date.now()) + Math.random().toString(36).slice(2), name, streak: 0, lastSlip: null };
+}
+function makeEveryTask(label = “”) {
+return { id: “every_” + String(Date.now()) + Math.random().toString(36).slice(2), label, done: false };
+}
+
+function makeDefaultSelfItems(habitIds) {
+return habitIds.map(id => ({
+id: id + “-” + Math.random().toString(36).slice(2),
+habitId: id, done: false, data: {}
+}));
+}
+
+function makeDefaultDay(date) {
+return {
+date: new Date(date),
+todayTasks: [],
+everyDone: [],
+workoutSessions: [makeWorkoutSession()],
+meals: [{ id: 1, label: “M1”, content: “”, done: false }, { id: 2, label: “M2”, content: “”, done: false }, { id: 3, label: “M3”, content: “”, done: false }],
+faithItems: DEFAULT_PRACTICE.items.map((label, i) => ({ id: i, label, done: false })),
+taraweeh: false, dhikr1000: false, isthikfar: false,
+selfItems: makeDefaultSelfItems(DEFAULT_SELF_HABITS),
+toxins: [],
+note: “”,
+plans: [],
+};
+}
+
+function buildYearData(yr = CURRENT_YEAR) {
+const map = {};
+for (let m = 0; m < 12; m++) {
+const dim = new Date(yr, m + 1, 0).getDate();
+for (let d = 1; d <= dim; d++) {
+const date = new Date(yr, m, d);
+map[dateKey(date)] = makeDefaultDay(date);
+}
+}
+return map;
+}
+
+function makePlan(text = “”, time = “”) {
+return { id: String(Date.now()) + Math.random().toString(36).slice(2), text, time, done: false };
+}
+function makeRecurringPlan(text = “”, time = “”, freq = “daily”, days = []) {
+return { id: String(Date.now()) + Math.random().toString(36).slice(2), text, time, freq, days };
+}
+
+function getDayScore(day, practice, everyTasks = []) {
+if (!day) return 0;
+const ramzan = practice?.id === “islam” && isRamzan(day.date);
+const everyDone = day.everyDone || [];
+const checks = [
+…(day.todayTasks || []).map(t => t.done),
+…everyTasks.map(t => everyDone.includes(t.id)),
+…(day.workoutSessions || []).map(s => s.done),
+…(day.faithItems || []).map(f => f.done),
+…day.meals.map(m => m.done),
+…(ramzan ? [day.taraweeh, day.dhikr1000, day.isthikfar] : []),
+…(day.selfItems || []).map(s => s.done),
+];
+const done = checks.filter(Boolean).length;
+return checks.length === 0 ? 0 : Math.round((done / checks.length) * 100);
+}
+
+function getPageBgDark(day, practice) {
+if (!day) return “#1a0f00”;
+const score = getDayScore(day, practice), tox = (day.toxins || []).filter(t => t.includes(”||”)).length, t = score / 100;
+let r, g, b;
+if (t < 0.5) { const s = t / 0.5; r = Math.round(36 - s * 10); g = Math.round(18 + s * 16); b = 0; }
+else { const s = (t - 0.5) / 0.5; r = Math.round(26 - s * 24); g = Math.round(34 + s * 26); b = Math.round(s * 20); }
+const tf = Math.min(tox * 0.22, 0.85);
+return `rgb(${Math.round(r + tf * (80 - r))},${Math.round(g * (1 - tf * 0.95))},${Math.round(b * (1 - tf * 0.7))})`;
+}
+function getPageBgLight(day, practice) {
+if (!day) return “#fdf6ee”;
+const score = getDayScore(day, practice), tox = (day.toxins || []).filter(t => t.includes(”||”)).length, t = score / 100;
+let r, g, b;
+if (t < 0.5) { const s = t / 0.5; r = Math.round(253 - s * 10); g = Math.round(246 - s * 10); b = Math.round(238 - s * 40); }
+else { const s = (t - 0.5) / 0.5; r = Math.round(243 - s * 30); g = Math.round(236 + s * 15); b = Math.round(198 + s * 40); }
+const tf = Math.min(tox * 0.15, 0.5);
+return `rgb(${Math.round(r + tf * 20)},${Math.round(g * (1 - tf * 0.15))},${Math.round(b * (1 - tf * 0.2))})`;
+}
+function getDayBg(day, isFuture, isDark, practice) {
+if (isFuture || !day) return isDark ? “rgba(255,255,255,0.02)” : “rgba(0,0,0,0.03)”;
+const score = getDayScore(day, practice);
+if (score === 0 && !(day.toxins || []).filter(t => t.includes(”||”)).length) return isDark ? “#1a0f00” : “#fdf6ee”;
+return isDark ? getPageBgDark(day, practice) : getPageBgLight(day, practice);
+}
+
+// ── STORAGE HELPERS ───────────────────────────────────────────────────────────
+function saveToStorage(key, value) {
+try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { }
+}
+function loadFromStorage(key) {
+try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch (e) { return null; }
+}
+
+// ── BOOT: load all persisted data before first render ─────────────────────────
+function loadInitialData() {
+const yearKeys = [];
+for (let y = CURRENT_YEAR - 10; y <= CURRENT_YEAR + 5; y++) yearKeys.push(y);
+
+const allYearsData = {};
+yearKeys.forEach(y => {
+const saved = loadFromStorage(`doer_yearData_${y}`) || (y === CURRENT_YEAR ? loadFromStorage(“doer_yearData”) : null);
+allYearsData[y] = saved ? rehydrateYearData(saved, y) : buildYearData(y);
+});
+Object.values(allYearsData).forEach(yd => {
+Object.values(yd).forEach(day => {
+if (day && day.toxins) {
+day.toxins = day.toxins.filter(t => {
+if (!t.includes(”||”)) return false;
+const parts = t.split(”||”);
+return parts.length >= 3;
+});
+}
+});
+});
+
+const selfHabitIdsRaw = loadFromStorage(“doer_selfHabitIds”);
+const selfHabitIds = (selfHabitIdsRaw || DEFAULT_SELF_HABITS).filter(id => {
+if (id === “custom”) return false;
+if (id.startsWith(“custom_”) && !id.includes(”::”)) return false;
+return true;
+});
+
+return {
+isDark: loadFromStorage(“doer_isDark”) !== null ? loadFromStorage(“doer_isDark”) : true,
+allYearsData,
+practice: loadFromStorage(“doer_practice”) || DEFAULT_PRACTICE,
+selfHabitIds,
+recurringReminders: loadFromStorage(“doer_recurring”) || [],
+addictions: loadFromStorage(“doer_addictions”) || [],
+everyTasks: loadFromStorage(“doer_everyTasks”) || [],
+lastStreakDate: loadFromStorage(“doer_lastStreakDate”) || “”,
+};
+}
+
+function rehydrateYearData(raw, yr = CURRENT_YEAR) {
+const base = buildYearData(yr);
+const out = { …base };
+Object.keys(raw).forEach(k => {
+if (out[k]) {
+const day = { …out[k], …raw[k], date: new Date(raw[k].date) };
+if (day.selfItems) {
+day.selfItems = day.selfItems.filter(s => s.habitId !== “custom”);
+}
+if (!day.todayTasks) day.todayTasks = [];
+if (day.workoutSessions) {
+day.workoutSessions = day.workoutSessions.map(s => ({
+customName: “”,
+…s,
+data: s.data || {},
+}));
+}
+day.toxins = (day.toxins || []).filter(t => t.includes(”||”));
+if (!day.everyTasks) day.everyTasks = [];
+out[k] = day;
+}
+});
+return out;
+}
+
+// ── LONG PRESS HOOK ───────────────────────────────────────────────────────────
+function useLongPress(onLongPress, duration = 600) {
+const [pressing, setPressing] = useState(false);
+const timer = useRef(null);
+function start(e) {
+if (e.target.closest(“button,input,textarea,a”)) return;
+setPressing(true);
+timer.current = setTimeout(() => { setPressing(false); onLongPress(); }, duration);
+}
+function cancel() { clearTimeout(timer.current); setPressing(false); }
+return { pressing, handlers: { onMouseDown: start, onMouseUp: cancel, onMouseLeave: cancel, onTouchStart: start, onTouchEnd: cancel, onTouchCancel: cancel } };
+}
+
+// ── FITNESS DRAWER ────────────────────────────────────────────────────────────
+function FitnessDrawer({ day, onClose, addWorkoutSession, removeWorkoutSession, changeWorkoutType, updateWorkoutCustomName, addMeal, T }) {
+const { isDark, CAT } = T;
+const color = CAT.fitness.color;
+const overlayBg = isDark ? “rgba(0,0,0,0.85)” : “rgba(0,0,0,0.5)”;
+const modalBg   = isDark ? “#0d0d0d” : “#fdfaf5”;
+const borderCol = isDark ? “rgba(255,255,255,0.08)” : “rgba(0,0,0,0.1)”;
+
+const sessions = day.workoutSessions || [];
+const [activeIdx, setActiveIdx] = useState(0);
+const activeSession = sessions[Math.min(activeIdx, sessions.length - 1)];
+const activePreset = WORKOUT_PRESETS.find(p => p.id === activeSession?.typeId) || WORKOUT_PRESETS[0];
+const [customWorkoutName, setCustomWorkoutName] = useState(activeSession?.customName || “”);
+const isCustomSelected = activeSession?.typeId === “custom”;
+
+return (
+<div style={{ position: “fixed”, inset: 0, zIndex: 999, background: overlayBg, display: “flex”, alignItems: “flex-end”, justifyContent: “center” }} onClick={onClose}>
+<div style={{ background: modalBg, borderRadius: “20px 20px 0 0”, width: “100%”, maxWidth: 480, maxHeight: “88vh”, overflowY: “auto”, padding: “0 0 40px”, border: `1px solid ${borderCol}` }} onClick={e => e.stopPropagation()}>
+<div style={{ display: “flex”, justifyContent: “center”, padding: “12px 0 0” }}>
+<div style={{ width: 40, height: 4, borderRadius: 2, background: isDark ? “rgba(255,255,255,0.15)” : “rgba(0,0,0,0.15)” }} />
+</div>
+<div style={{ padding: “14px 18px 0” }}>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 6 }}>
+<div>
+<div style={{ fontSize: 14, fontWeight: “bold”, letterSpacing: 3, color: T.text }}>FITNESS</div>
+<div style={{ fontSize: 9, color: T.sub, letterSpacing: 2, marginTop: 2 }}>CHOOSE WORKOUT TYPE · MANAGE SESSIONS</div>
+</div>
+<button onClick={onClose} style={{ background: “none”, border: “none”, color: T.sub, cursor: “pointer”, fontSize: 20, lineHeight: 1 }}>×</button>
+</div>
+
+```
+      {sessions.length > 1 && (
+        <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap", marginTop: 10 }}>
+          {sessions.map((s, i) => {
+            const p = WORKOUT_PRESETS.find(x => x.id === s.typeId) || WORKOUT_PRESETS[0];
+            return (
+              <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 5, background: activeIdx === i ? `${color}22` : (isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)"), border: `1px solid ${activeIdx === i ? color + "66" : borderCol}`, borderRadius: 20, padding: "5px 12px", cursor: "pointer", transition: "all 0.2s" }}
+                onClick={() => setActiveIdx(i)}>
+                <span style={{ fontSize: 13 }}>{p.icon}</span>
+                <span style={{ fontSize: 10, color: activeIdx === i ? color : T.sub, letterSpacing: 1 }}>{p.label}</span>
+                <span onClick={e => { e.stopPropagation(); removeWorkoutSession(s.id); setActiveIdx(Math.max(0, i - 1)); }}
+                  style={{ fontSize: 13, color: T.sub, marginLeft: 2, lineHeight: 1, opacity: 0.6, cursor: "pointer" }}>×</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ fontSize: 9, letterSpacing: 2, color: `${color}88`, marginBottom: 10, marginTop: sessions.length > 1 ? 0 : 14 }}>
+        {sessions.length > 1 ? `SESSION ${activeIdx + 1} TYPE` : "WORKOUT TYPE"}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 10 }}>
+        {WORKOUT_PRESETS.map(p => {
+          const isSelected = activeSession?.typeId === p.id;
+          return (
+            <div key={p.id} onClick={() => activeSession && changeWorkoutType(activeSession.id, p.id)} style={{ background: isSelected ? `${color}22` : (isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"), border: `1px solid ${isSelected ? color + "77" : borderCol}`, borderRadius: 12, padding: "10px 8px", cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
+              <div style={{ fontSize: 22, marginBottom: 4 }}>{p.icon}</div>
+              <div style={{ fontSize: 9, letterSpacing: 1, color: isSelected ? color : T.sub, fontWeight: isSelected ? "bold" : "normal" }}>{p.label.toUpperCase()}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      {isCustomSelected && (
+        <div style={{ background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)", borderRadius: 14, padding: 14, border: `1px solid ${borderCol}`, marginBottom: 16 }}>
+          <div style={{ fontSize: 9, letterSpacing: 2, color: T.sub, marginBottom: 10 }}>CUSTOM WORKOUT</div>
+          <input autoFocus placeholder="Workout name..." value={customWorkoutName}
+            onChange={e => { setCustomWorkoutName(e.target.value); if (activeSession) updateWorkoutCustomName(activeSession.id, e.target.value); }}
+            maxLength={30} style={{ ...inp(color, T), flex: 1 }} />
+          <div style={{ fontSize: 9, color: T.sub, letterSpacing: 0.5, marginTop: 6 }}>e.g. Pole Dance, Parkour, Archery...</div>
+        </div>
+      )}
+
+      <button onClick={() => { addWorkoutSession(); setActiveIdx(sessions.length); }} style={{ ...ghost(color, T), marginBottom: 24 }}>
+        + add another workout session
+      </button>
+
+      <div style={{ fontSize: 9, letterSpacing: 2, color: `${color}88`, marginBottom: 8 }}>MEALS · {day.meals.length} logged</div>
+      <button onClick={addMeal} style={ghost(color, T)}>+ add meal slot</button>
+
+      <button onClick={onClose} style={{ width: "100%", background: `${color}22`, border: `1px solid ${color}55`, borderRadius: 10, color, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 12, letterSpacing: 2, padding: "12px", fontWeight: "bold", marginTop: 22 }}>
+        DONE
+      </button>
+    </div>
+  </div>
+</div>
+```
+
+);
+}
+
+// ── PRACTICE PICKER ───────────────────────────────────────────────────────────
+function PracticePicker({ practice, onSave, onClose, T }) {
+const [selected, setSelected] = useState(practice.id);
+const [customName, setCustomName] = useState(practice.label || “My Practice”);
+const [customIcon, setCustomIcon] = useState(practice.icon || “✨”);
+const [customItems, setCustomItems] = useState(practice.items || []);
+const [newItem, setNewItem] = useState(””);
+const { isDark, CAT } = T;
+const color = CAT.faith.color;
+
+function handleSelect(p) {
+setSelected(p.id);
+setCustomName(p.label);
+setCustomIcon(p.icon);
+setCustomItems([…p.items]);
+}
+
+function handleSave() {
+const preset = PRACTICE_PRESETS.find(p => p.id === selected);
+onSave({ id: selected, label: customName || preset?.label || “Custom”, icon: customIcon || preset?.icon || “✨”, items: customItems });
+}
+function addItem() { if (!newItem.trim()) return; setCustomItems(prev => […prev, newItem.trim()]); setNewItem(””); }
+
+const overlayBg = isDark ? “rgba(0,0,0,0.85)” : “rgba(0,0,0,0.5)”;
+const modalBg   = isDark ? “#0d0d0d” : “#fdfaf5”;
+const borderCol = isDark ? “rgba(255,255,255,0.08)” : “rgba(0,0,0,0.1)”;
+
+return (
+<div style={{ position: “fixed”, inset: 0, zIndex: 999, background: overlayBg, display: “flex”, alignItems: “flex-end”, justifyContent: “center” }} onClick={onClose}>
+<div style={{ background: modalBg, borderRadius: “20px 20px 0 0”, width: “100%”, maxWidth: 480, maxHeight: “88vh”, overflowY: “auto”, padding: “0 0 40px”, border: `1px solid ${borderCol}` }} onClick={e => e.stopPropagation()}>
+<div style={{ display: “flex”, justifyContent: “center”, padding: “12px 0 0” }}>
+<div style={{ width: 40, height: 4, borderRadius: 2, background: isDark ? “rgba(255,255,255,0.15)” : “rgba(0,0,0,0.15)” }} />
+</div>
+<div style={{ padding: “14px 18px 0” }}>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 16 }}>
+<div>
+<div style={{ fontSize: 14, fontWeight: “bold”, letterSpacing: 3, color: T.text }}>FAITH & PRACTICE</div>
+<div style={{ fontSize: 9, color: T.sub, letterSpacing: 2, marginTop: 2 }}>HOLD TO CUSTOMISE · CHOOSE YOUR PATH</div>
+</div>
+<button onClick={onClose} style={{ background: “none”, border: “none”, color: T.sub, cursor: “pointer”, fontSize: 20, lineHeight: 1 }}>×</button>
+</div>
+<div style={{ display: “grid”, gridTemplateColumns: “repeat(3,1fr)”, gap: 8, marginBottom: 18 }}>
+{PRACTICE_PRESETS.map(p => (
+<div key={p.id} onClick={() => handleSelect(p)} style={{ background: selected === p.id ? `${color}22` : (isDark ? “rgba(255,255,255,0.04)” : “rgba(0,0,0,0.04)”), border: `1px solid ${selected === p.id ? color + "77" : borderCol}`, borderRadius: 12, padding: “10px 8px”, cursor: “pointer”, textAlign: “center”, transition: “all 0.2s” }}>
+<div style={{ fontSize: 22, marginBottom: 4 }}>{p.icon}</div>
+<div style={{ fontSize: 9, letterSpacing: 1, color: selected === p.id ? color : T.sub, fontWeight: selected === p.id ? “bold” : “normal” }}>{p.label.toUpperCase()}</div>
+</div>
+))}
+</div>
+<div style={{ background: isDark ? “rgba(255,255,255,0.04)” : “rgba(0,0,0,0.04)”, borderRadius: 14, padding: 14, border: `1px solid ${borderCol}`, marginBottom: 16 }}>
+<div style={{ fontSize: 9, letterSpacing: 2, color: T.sub, marginBottom: 10 }}>RITUALS <span style={{ fontWeight: “normal”, letterSpacing: 0, fontSize: 8, opacity: 0.6 }}>— tap × to remove, add your own below</span></div>
+<div style={{ display: “flex”, gap: 6, marginBottom: 10 }}>
+<input placeholder=“Icon” value={customIcon} onChange={e => setCustomIcon(e.target.value)} style={{ …inp(color, T), width: 60, textAlign: “center”, fontSize: 18 }} maxLength={2} />
+<input placeholder=“Practice name…” value={customName} onChange={e => setCustomName(e.target.value)} style={{ …inp(color, T), flex: 1 }} />
+</div>
+{customItems.map((item, i) => (
+<div key={i} style={{ display: “flex”, alignItems: “center”, gap: 8, marginBottom: 6 }}>
+<div style={{ width: 5, height: 5, borderRadius: “50%”, background: `${color}66`, flexShrink: 0 }} />
+<span style={{ fontSize: 12, color: T.text, flex: 1 }}>{item}</span>
+<button onClick={() => setCustomItems(prev => prev.filter((_, idx) => idx !== i))} style={{ background: “none”, border: “none”, color: T.sub, cursor: “pointer”, fontSize: 14, padding: “0 2px” }}>×</button>
+</div>
+))}
+<div style={{ display: “flex”, gap: 6, marginTop: 8 }}>
+<input placeholder=“Add a ritual…” value={newItem} onChange={e => setNewItem(e.target.value)} onKeyDown={e => e.key === “Enter” && addItem()} style={{ …inp(color, T), flex: 1 }} />
+<button onClick={addItem} style={{ background: `${color}22`, border: `1px solid ${color}44`, borderRadius: 6, color, cursor: “pointer”, fontSize: 11, padding: “6px 10px”, fontFamily: “‘Georgia’,serif” }}>+</button>
+</div>
+{customItems.length === 0 && <div style={{ fontSize: 9, color: T.sub, marginTop: 6, letterSpacing: 1 }}>No rituals yet — add some above</div>}
+</div>
+<button onClick={handleSave} style={{ width: “100%”, background: `${color}22`, border: `1px solid ${color}55`, borderRadius: 10, color, cursor: “pointer”, fontFamily: “‘Georgia’,serif”, fontSize: 12, letterSpacing: 2, padding: “12px”, fontWeight: “bold” }}>
+SAVE PRACTICE
+</button>
+</div>
+</div>
+</div>
+);
+}
+
+// ── INTRO ANIMATION ───────────────────────────────────────────────────────────
+function IntroScreen({ onDone }) {
+const [phase, setPhase] = useState(0);
+
+useEffect(() => {
+const prefersReduced = window.matchMedia(”(prefers-reduced-motion: reduce)”).matches;
+if (prefersReduced) { onDone(); return; }
+const ts = [
+setTimeout(() => setPhase(1), 400),
+setTimeout(() => setPhase(2), 1800),
+setTimeout(() => setPhase(3), 3200),
+setTimeout(() => onDone(),    4000),
+];
+return () => ts.forEach(clearTimeout);
+}, []);
+
+const silk = “cubic-bezier(0.16, 1, 0.3, 1)”;
+const ease = “cubic-bezier(0.25, 0.46, 0.45, 0.94)”;
+
+return (
+<div onClick={onDone} style={{ position: “fixed”, inset: 0, zIndex: 9999, background: “#000”, display: “flex”, flexDirection: “column”, alignItems: “center”, justifyContent: “center”, fontFamily: “‘Georgia’, ‘Times New Roman’, serif”, overflow: “hidden”, opacity: phase === 3 ? 0 : 1, transition: phase === 3 ? `opacity 0.9s ${ease}` : “none” }}>
+<div style={{ position: “absolute”, inset: 0, background: “radial-gradient(ellipse at center, rgba(60,20,5,0.4) 0%, #000 70%)”, pointerEvents: “none” }} />
+<div style={{ position: “absolute”, width: phase >= 1 ? “28%” : “0%”, height: “0.5px”, background: “linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)”, top: “calc(50% - 54px)”, transition: `width 1.8s ${silk}` }} />
+<div style={{ position: “absolute”, width: phase >= 1 ? “28%” : “0%”, height: “0.5px”, background: “linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)”, top: “calc(50% + 54px)”, transition: `width 1.8s ${silk}` }} />
+<div style={{ opacity: phase >= 1 ? 1 : 0, transform: phase >= 1 ? “translateY(0px)” : “translateY(32px)”, transition: `opacity 1.4s ${silk}, transform 1.4s ${silk}`, display: “flex”, flexDirection: “column”, alignItems: “center”, gap: 14 }}>
+<div style={{ fontSize: 64, fontWeight: 300, letterSpacing: 24, color: “rgba(255,255,255,0.92)”, lineHeight: 1, textIndent: 24 }}>DOER</div>
+<div style={{ opacity: phase >= 2 ? 1 : 0, transform: phase >= 2 ? “translateY(0px)” : “translateY(8px)”, transition: `opacity 1.2s ${silk}, transform 1.2s ${silk}`, display: “flex”, flexDirection: “column”, alignItems: “center”, gap: 6 }}>
+<div style={{ width: 24, height: “0.5px”, background: “rgba(255,255,255,0.2)” }} />
+<div style={{ fontSize: 9.5, fontWeight: 300, letterSpacing: 5, color: “rgba(255,255,255,0.28)”, textTransform: “uppercase” }}>a habit-aware calendar</div>
+</div>
+</div>
+<div style={{ position: “absolute”, bottom: 32, fontSize: 8, letterSpacing: 2, color: “rgba(255,255,255,0.07)”, opacity: phase >= 1 ? 1 : 0, transition: `opacity 2s ${ease}`, textTransform: “uppercase” }}>tap to skip</div>
+</div>
+);
+}
+
+// ── BOOT SCREEN ───────────────────────────────────────────────────────────────
+function BootScreen() {
+return (
+<div style={{ position: “fixed”, inset: 0, background: “#000”, display: “flex”, flexDirection: “column”, alignItems: “center”, justifyContent: “center”, fontFamily: “‘Georgia’,‘Times New Roman’,serif” }}>
+<div style={{ position: “absolute”, inset: 0, background: “radial-gradient(ellipse at center, rgba(60,20,5,0.4) 0%, #000 70%)” }} />
+<div style={{ fontSize: 64, fontWeight: 300, letterSpacing: 24, color: “rgba(255,255,255,0.92)”, lineHeight: 1, textIndent: 24, marginBottom: 28 }}>DOER</div>
+<div style={{ display: “flex”, gap: 6, alignItems: “center” }}>
+{[0,1,2].map(i => <div key={i} style={{ width: 4, height: 4, borderRadius: “50%”, background: “rgba(255,255,255,0.25)”, animation: `doerDot 1.2s ${i*0.2}s ease-in-out infinite` }} />)}
+</div>
+<style>{`@keyframes doerDot{0%,80%,100%{opacity:.25;transform:scale(1)}40%{opacity:1;transform:scale(1.4)}}`}</style>
+</div>
+);
+}
+
+// ── ROOT ──────────────────────────────────────────────────────────────────────
+export default function Root() {
+const [initialData] = useState(() => loadInitialData());
+return <App initialData={initialData} />;
+}
+
+// ── MAIN APP ──────────────────────────────────────────────────────────────────
+function App({ initialData }) {
+const [showIntro, setShowIntro] = useState(true);
+
+const [isDark, setIsDark] = useState(initialData.isDark);
+const [view, setView]         = useState(“day”);
+const [allYearsData, setAllYearsData] = useState(initialData.allYearsData);
+
+const [selectedKey, setSelKey]  = useState(dateKey(today));
+const [viewMonth, setViewMonth] = useState(today.getMonth());
+const [viewYear, setViewYear]   = useState(CURRENT_YEAR);
+const yearData = allYearsData[viewYear] || buildYearData(viewYear);
+
+const [practice, setPractice]   = useState(initialData.practice);
+const [showPicker, setShowPicker]             = useState(false);
+const [showFitnessDrawer, setShowFitnessDrawer] = useState(false);
+const [showSelfDrawer, setShowSelfDrawer]     = useState(false);
+const [showWorkDrawer, setShowWorkDrawer]     = useState(false);
+
+const [selfHabitIds, setSelfHabitIds] = useState(initialData.selfHabitIds);
+const [recurringReminders, setRecurringReminders] = useState(initialData.recurringReminders);
+
+function saveRecurring(list) { setRecurringReminders(list); saveToStorage(“doer_recurring”, list); }
+function updateNote(text) { updateDay(d => ({ …d, note: text })); }
+function addPlan(text, time) { updateDay(d => ({ …d, plans: […(d.plans || []), makePlan(text, time)] })); }
+function togPlan(id) { updateDay(d => ({ …d, plans: (d.plans || []).map(r => r.id === id ? { …r, done: !r.done } : r) })); }
+function delPlan(id) { updateDay(d => ({ …d, plans: (d.plans || []).filter(r => r.id !== id) })); }
+
+const saveTimerRef = useRef({});
+function updateDay(fn) {
+setAllYearsData(all => {
+const yd = all[viewYear] || buildYearData(viewYear);
+const next = { …yd, [selectedKey]: fn(yd[selectedKey]) };
+const nextAll = { …all, [viewYear]: next };
+clearTimeout(saveTimerRef.current[viewYear]);
+saveTimerRef.current[viewYear] = setTimeout(() => saveToStorage(`doer_yearData_${viewYear}`, next), 300);
+return nextAll;
+});
+}
+
+const CAT = isDark ? CAT_DARK : CAT_LIGHT;
+const day  = yearData[selectedKey];
+const pageBg = view === “day” ? (isDark ? getPageBgDark(day, practice) : getPageBgLight(day, practice)) : (isDark ? “#1a0f00” : “#fdf6ee”);
+
+const T = {
+isDark, CAT,
+text:       isDark ? “#f0ece4” : “#1a1208”,
+sub:        isDark ? “rgba(255,255,255,0.35)” : “rgba(30,20,5,0.4)”,
+border:     isDark ? “rgba(255,255,255,0.06)” : “rgba(0,0,0,0.08)”,
+panelBg:    isDark ? “rgba(0,0,0,0.45)” : “rgba(255,255,255,0.75)”,
+tileBg:     isDark ? “rgba(255,255,255,0.03)” : “rgba(0,0,0,0.03)”,
+tileBorder: isDark ? “rgba(255,255,255,0.07)” : “rgba(0,0,0,0.08)”,
+dot:        isDark ? “rgba(255,255,255,0.15)” : “rgba(0,0,0,0.12)”,
+statBg:     isDark ? “rgba(0,0,0,0.35)” : “rgba(255,255,255,0.65)”,
+};
+
+function toggleDark() { const next = !isDark; setIsDark(next); saveToStorage(“doer_isDark”, next); }
+
+const tog  = k  => updateDay(d => ({ …d, [k]: !d[k] }));
+const togF = id => updateDay(d => ({ …d, faithItems: d.faithItems.map(f => f.id === id ? { …f, done: !f.done } : f) }));
+const togWorkout = sid => updateDay(d => ({ …d, workoutSessions: d.workoutSessions.map(s => s.id === sid ? { …s, done: !s.done } : s) }));
+const togMeal    = id  => updateDay(d => ({ …d, meals: d.meals.map(m => m.id === id ? { …m, done: !m.done } : m) }));
+
+const addWorkoutSession    = () => updateDay(d => ({ …d, workoutSessions: […(d.workoutSessions || []), makeWorkoutSession()] }));
+const removeWorkoutSession = sid => updateDay(d => ({ …d, workoutSessions: d.workoutSessions.filter(s => s.id !== sid) }));
+const updateWorkoutField   = (sid, key, val) => updateDay(d => ({ …d, workoutSessions: d.workoutSessions.map(s => s.id === sid ? { …s, data: { …s.data, [key]: val } } : s) }));
+const changeWorkoutType    = (sid, typeId)   => updateDay(d => ({ …d, workoutSessions: d.workoutSessions.map(s => s.id === sid ? { …s, typeId, data: {}, customName: “” } : s) }));
+const updateWorkoutCustomName = (sid, name)  => updateDay(d => ({ …d, workoutSessions: d.workoutSessions.map(s => s.id === sid ? { …s, customName: name } : s) }));
+const updMeal = (id, f, v) => updateDay(d => ({ …d, meals: d.meals.map(m => m.id === id ? { …m, [f]: v } : m) }));
+const addMeal = () => updateDay(d => { const n = d.meals.length + 1; return { …d, meals: […d.meals, { id: n, label: `M${n}`, content: “”, done: false }] }; });
+
+const addTodayTask  = label => { if (!label.trim()) return; updateDay(d => ({ …d, todayTasks: […(d.todayTasks || []), makeTodayTask(label)] })); };
+const togTodayTask  = id => updateDay(d => ({ …d, todayTasks: (d.todayTasks || []).map(t => t.id === id ? { …t, done: !t.done } : t) }));
+const remTodayTask  = id => updateDay(d => ({ …d, todayTasks: (d.todayTasks || []).filter(t => t.id !== id) }));
+
+const [addictions, setAddictions] = useState(initialData.addictions);
+
+function saveAddictions(list) {
+setAddictions(list);
+saveToStorage(“doer_addictions”, list);
+}
+
+function logSlip(id) {
+const time = new Date().toLocaleTimeString([], { hour: “2-digit”, minute: “2-digit” });
+const addiction = addictions.find(a => a.id === id);
+const name = addiction ? addiction.name : “?”;
+const todayStr = dateKey(new Date());
+setAddictions(prev => {
+const updated = prev.map(a => a.id === id ? { …a, streak: 0, lastSlip: todayStr } : a);
+saveToStorage(“doer_addictions”, updated);
+return updated;
+});
+updateDay(d => ({ …d, toxins: […d.toxins, id + “||” + name + “||” + time] }));
+}
+
+function addAddiction(name) {
+const updated = […addictions, makeAddiction(name)];
+saveAddictions(updated);
+}
+function removeAddiction(id) {
+saveAddictions(addictions.filter(a => a.id !== id));
+const todayK = dateKey(new Date());
+if (selectedKey === todayK) {
+updateDay(d => ({ …d, toxins: (d.toxins || []).filter(t => !t.startsWith(id + “||”)) }));
+}
+}
+function renameAddiction(id, name) {
+const updated = addictions.map(a => a.id === id ? { …a, name } : a);
+saveAddictions(updated);
+}
+
+const hasIncrementedStreak = useRef(false);
+useEffect(() => {
+const todayStr = dateKey(new Date());
+const lastDate = initialData.lastStreakDate;
+if (lastDate !== todayStr && !hasIncrementedStreak.current) {
+hasIncrementedStreak.current = true;
+saveToStorage(“doer_lastStreakDate”, todayStr);
+const yesterday = new Date();
+yesterday.setDate(yesterday.getDate() - 1);
+const yesterdayStr = dateKey(yesterday);
+setAddictions(prev => {
+const updated = prev.map(a => ({
+…a,
+streak: a.lastSlip === yesterdayStr ? 0 : (a.streak || 0) + 1
+}));
+saveToStorage(“doer_addictions”, updated);
+return updated;
+});
+}
+}, []);
+
+const [everyTasks, setEveryTasks] = useState(initialData.everyTasks);
+const score = getDayScore(day, practice, everyTasks);
+
+function saveEveryTasks(tasks) {
+setEveryTasks(tasks);
+saveToStorage(“doer_everyTasks”, tasks);
+}
+const togEveryTask = id => updateDay(d => {
+const everyDone = new Set(d.everyDone || []);
+if (everyDone.has(id)) everyDone.delete(id); else everyDone.add(id);
+return { …d, everyDone: […everyDone] };
+});
+const togSelf    = id => updateDay(d => ({ …d, selfItems: (d.selfItems || []).map(s => s.id === id ? { …s, done: !s.done } : s) }));
+const updateSelfField = (id, key, val) => updateDay(d => ({ …d, selfItems: (d.selfItems || []).map(s => s.id === id ? { …s, data: { …s.data, [key]: val } } : s) }));
+
+function saveSelfHabits(ids) {
+setSelfHabitIds(ids);
+saveToStorage(“doer_selfHabitIds”, ids);
+updateDay(d => {
+const existingIds = new Set((d.selfItems || []).map(s => s.habitId));
+const newItems = ids
+.filter(id => !existingIds.has(id))
+.map(id => ({ id: id + “-” + Math.random().toString(36).slice(2), habitId: id, done: false, data: {} }));
+const kept = (d.selfItems || []).filter(s => ids.includes(s.habitId));
+return { …d, selfItems: […kept, …newItems] };
+});
+}
+
+const openDay = k => { setSelKey(k); setView(“day”); setViewYear(parseInt(k.slice(0, 4))); };
+
+function handleSavePractice(newPractice) {
+setPractice(newPractice);
+saveToStorage(“doer_practice”, newPractice);
+const todayK = dateKey(today);
+setAllYearsData(all => {
+const yd = all[viewYear] || buildYearData(viewYear);
+const next = { …yd };
+Object.keys(next).forEach(k => {
+if (k >= todayK) {
+next[k] = { …next[k], faithItems: newPractice.items.map((label, i) => ({ id: i, label, done: false })) };
+}
+});
+saveToStorage(`doer_yearData_${viewYear}`, next);
+return { …all, [viewYear]: next };
+});
+setShowPicker(false);
+}
+
+return (
+<div style={{ minHeight: “100vh”, background: pageBg, transition: “background 1s ease”, fontFamily: “‘Georgia’,serif”, color: T.text }}>
+{showIntro && <IntroScreen onDone={() => setShowIntro(false)} />}
+
+```
+  {/* TOP BAR */}
+  <div style={{ position: "sticky", top: 0, zIndex: 300, background: isDark ? "rgba(0,0,0,0.72)" : "rgba(255,252,246,0.88)", backdropFilter: "blur(16px)", borderBottom: `1px solid ${T.border}`, padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+    <div>
+      <div style={{ fontSize: 20, fontWeight: "bold", letterSpacing: 5 }}>DOER <span style={{ fontSize: 11, fontWeight: "normal", letterSpacing: 3, opacity: 0.5 }}>CALENDAR</span></div>
+      <div style={{ fontSize: 8, color: T.sub, letterSpacing: 2, marginTop: 1 }}>a habit-aware calendar · {viewYear}</div>
+    </div>
+    <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+      {[["day", "DAY"], ["month", "MTH"], ["year", "YR"]].map(([v, l]) => (
+        <button key={v} onClick={() => setView(v)} style={{ background: view === v ? (isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)") : "transparent", border: `1px solid ${view === v ? (isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.2)") : T.border}`, borderRadius: 6, color: view === v ? T.text : T.sub, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 9, letterSpacing: 2, padding: "5px 10px" }}>{l}</button>
+      ))}
+      {(viewYear !== CURRENT_YEAR || (view === "month" && viewMonth !== today.getMonth()) || (view === "day" && selectedKey !== dateKey(today))) && (
+        <button onClick={() => { setViewYear(CURRENT_YEAR); setViewMonth(today.getMonth()); setSelKey(dateKey(today)); }} style={{ background: `${CAT.faith.color}18`, border: `1px solid ${CAT.faith.color}44`, borderRadius: 6, color: CAT.faith.color, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 9, letterSpacing: 1, padding: "5px 8px" }}>NOW</button>
+      )}
+      <button onClick={toggleDark} style={{ background: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)", border: `1px solid ${isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)"}`, borderRadius: 20, cursor: "pointer", fontSize: 13, padding: "4px 10px", transition: "all 0.3s", lineHeight: 1 }}>
+        {isDark ? "☀️" : "🌙"}
+      </button>
+    </div>
+    <div style={{ position: "relative", width: 42, height: 42 }}>
+      <svg width="42" height="42" style={{ transform: "rotate(-90deg)" }}>
+        <circle cx="21" cy="21" r="17" fill="none" stroke={isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)"} strokeWidth="3" />
+        <circle cx="21" cy="21" r="17" fill="none" stroke={score === 100 ? CAT.self.color : score >= 60 ? CAT.fitness.color : CAT.toxins.color} strokeWidth="3" strokeDasharray={`${(score / 100) * 107} 107`} strokeLinecap="round" style={{ transition: "stroke-dasharray 0.6s ease" }} />
+      </svg>
+      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: "bold" }}>{score}</div>
+    </div>
+  </div>
+
+  {/* Swipeable content area */}
+  {(() => {
+    function handleSwipe(onLeft, onRight) {
+      let startX = null;
+      return {
+        onTouchStart: e => { startX = e.touches[0].clientX; },
+        onTouchEnd: e => {
+          if (startX === null) return;
+          const dx = e.changedTouches[0].clientX - startX;
+          if (Math.abs(dx) < 50) return;
+          if (dx < 0) onLeft(); else onRight();
+          startX = null;
+        }
+      };
+    }
+
+    if (view === "day") {
+      const keys = Object.values(allYearsData).flatMap(yd => Object.keys(yd)).sort();
+      const idx = keys.indexOf(selectedKey);
+      const swipe = handleSwipe(
+        () => { if (idx < keys.length - 1) openDay(keys[idx + 1]); },
+        () => { if (idx > 0) openDay(keys[idx - 1]); }
+      );
+      return (
+        <div {...swipe}>
+          <DayView day={day} score={score} T={T} practice={practice}
+            tog={tog} togF={togF} togWorkout={togWorkout} togMeal={togMeal} updateDay={updateDay}
+            updateWorkoutField={updateWorkoutField} updMeal={updMeal}
+            onOpenFitness={() => setShowFitnessDrawer(true)}
+            onOpenWork={() => setShowWorkDrawer(true)}
+            everyTasks={everyTasks} togEveryTask={togEveryTask}
+            addTodayTask={addTodayTask} togTodayTask={togTodayTask} remTodayTask={remTodayTask}
+            addictions={addictions} logSlip={logSlip} addAddiction={addAddiction} removeAddiction={removeAddiction} renameAddiction={renameAddiction}
+            onOpenSelf={() => setShowSelfDrawer(true)}
+            togSelf={togSelf} updateSelfField={updateSelfField}
+            onOpenPicker={() => setShowPicker(true)}
+            recurringReminders={recurringReminders} saveRecurring={saveRecurring}
+            updateNote={updateNote} addPlan={addPlan} togPlan={togPlan} delPlan={delPlan}
+          />
+        </div>
+      );
+    }
+
+    if (view === "month") {
+      const swipe = handleSwipe(
+        () => { if (viewMonth === 11) { setViewMonth(0); setViewYear(y => Math.min(CURRENT_YEAR + 5, y + 1)); } else setViewMonth(m => m + 1); },
+        () => { if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); } else setViewMonth(m => m - 1); }
+      );
+      return <div {...swipe}><MonthView yearData={yearData} month={viewMonth} setMonth={setViewMonth} onOpenDay={openDay} T={T} practice={practice} everyTasks={everyTasks} viewYear={viewYear} setViewYear={setViewYear} recurringReminders={recurringReminders} /></div>;
+    }
+
+    if (view === "year") {
+      const yearSwipe = handleSwipe(
+        () => setViewYear(y => Math.min(CURRENT_YEAR + 5, y + 1)),
+        () => setViewYear(y => y - 1)
+      );
+      return <div {...yearSwipe}><YearView yearData={yearData} addictions={addictions} everyTasks={everyTasks} onOpenDay={openDay} onOpenMonth={m => { setViewMonth(m); setView("month"); }} T={T} practice={practice} viewYear={viewYear} setViewYear={setViewYear} recurringReminders={recurringReminders} /></div>;
+    }
+  })()}
+
+  {showPicker && <PracticePicker practice={practice} onSave={handleSavePractice} onClose={() => setShowPicker(false)} T={T} />}
+  {showFitnessDrawer && day && (
+    <FitnessDrawer day={day} onClose={() => setShowFitnessDrawer(false)}
+      addWorkoutSession={addWorkoutSession} removeWorkoutSession={removeWorkoutSession}
+      changeWorkoutType={changeWorkoutType} updateWorkoutCustomName={updateWorkoutCustomName}
+      addMeal={addMeal} T={T} />
+  )}
+  {showSelfDrawer && (
+    <SelfDrawer selfHabitIds={selfHabitIds} onSave={saveSelfHabits} onClose={() => setShowSelfDrawer(false)} T={T} />
+  )}
+  {showWorkDrawer && (
+    <WorkDrawer everyTasks={everyTasks} todayTasks={day?.todayTasks || []}
+      onSave={(every, todayList) => {
+        saveEveryTasks(every);
+        updateDay(d => ({ ...d, todayTasks: todayList }));
+      }}
+      onClose={() => setShowWorkDrawer(false)} T={T} />
+  )}
+</div>
+```
+
+);
+}
+
+// ── DAY VIEW ──────────────────────────────────────────────────────────────────
+function DayView({ day, score, T, practice, tog, togF, togWorkout, togMeal, updateDay,
+updateWorkoutField, updMeal, onOpenFitness, onOpenWork, everyTasks, togEveryTask,
+addTodayTask, togTodayTask, remTodayTask, addictions, logSlip, addAddiction,
+removeAddiction, renameAddiction, onOpenSelf, togSelf, updateSelfField, onOpenPicker,
+recurringReminders, saveRecurring, updateNote, addPlan, togPlan, delPlan }) {
+if (!day) return null;
+const { CAT } = T;
+const ramzan = practice.id === “islam” && isRamzan(day.date);
+const d = day.date;
+const [showNR, setShowNR] = useState(false);
+const isFuture = dateKey(d) > dateKey(today);
+
+return (
+<div style={{ padding: “0 0 80px 0” }}>
+<div style={{ padding: “20px 20px 14px”, borderBottom: `1px solid ${T.border}` }}>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “flex-end” }}>
+<div>
+<div style={{ fontSize: 11, letterSpacing: 4, color: T.sub }}>{DAY_NAMES[d.getDay()].toUpperCase()}</div>
+<div style={{ fontSize: 52, fontWeight: “bold”, lineHeight: 1, letterSpacing: -1, marginTop: 2 }}>{d.getDate()}</div>
+<div style={{ fontSize: 11, letterSpacing: 3, color: T.sub, marginTop: 2 }}>{MONTH_NAMES[d.getMonth()].toUpperCase()} · {d.getFullYear()}</div>
+</div>
+<div style={{ textAlign: “right” }}>
+{!isFuture && (day.toxins || []).filter(t => t.includes(”||”)).length > 0 && <div style={{ fontSize: 11, color: CAT.toxins.color, letterSpacing: 1 }}>{(day.toxins || []).filter(t => t.includes(”||”)).length} slips</div>}
+{!isFuture && score === 100 && (day.toxins || []).filter(t => t.includes(”||”)).length === 0 && <div style={{ fontSize: 11, color: CAT.self.color, letterSpacing: 2 }}>✦ PERFECT</div>}
+{isFuture && <div style={{ fontSize: 9, color: T.sub, letterSpacing: 2, opacity: 0.5 }}>UPCOMING</div>}
+{ramzan && <div style={{ fontSize: 10, color: T.sub, marginTop: 4 }}>🌙 RAMZAN</div>}
+</div>
+</div>
+{!isFuture && (
+<div style={{ marginTop: 14, height: 2, background: T.isDark ? “rgba(255,255,255,0.08)” : “rgba(0,0,0,0.08)”, borderRadius: 2, overflow: “hidden” }}>
+<div style={{ height: “100%”, width: `${score}%`, background: score === 100 ? CAT.self.color : score >= 60 ? CAT.fitness.color : CAT.toxins.color, borderRadius: 2, transition: “width 0.6s ease” }} />
+</div>
+)}
+</div>
+
+```
+  <div style={{ padding: "14px 12px", display: "flex", flexDirection: "column", gap: 2 }}>
+    {isFuture ? (
+      <>
+        <div style={{ textAlign: "center", padding: "24px 16px 16px", color: T.sub, fontSize: 10, letterSpacing: 2, opacity: 0.4 }}>HABIT TRACKING UNLOCKS ON THIS DAY</div>
+        <NotesRemindersPanel day={day} onOpen={() => setShowNR(true)} recurringReminders={recurringReminders} T={T} />
+      </>
+    ) : (
+      <>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+          <FitnessPanelClean day={day} onOpenFitness={onOpenFitness} togWorkout={togWorkout} togMeal={togMeal} updateWorkoutField={updateWorkoutField} updMeal={updMeal} T={T} />
+          <FaithPanel day={day} practice={practice} ramzan={ramzan} togF={togF} tog={tog} onOpenPicker={onOpenPicker} T={T} />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8, minWidth: 0 }}>
+          <WorkPanel day={day} onOpenWork={onOpenWork} everyTasks={everyTasks} togEveryTask={togEveryTask} addTodayTask={addTodayTask} togTodayTask={togTodayTask} remTodayTask={remTodayTask} T={T} />
+          <SelfPanel day={day} onOpenSelf={onOpenSelf} togSelf={togSelf} updateSelfField={updateSelfField} T={T} />
+        </div>
+        <DisciplinePanel addictions={addictions} day={day} logSlip={logSlip} addAddiction={addAddiction} removeAddiction={removeAddiction} renameAddiction={renameAddiction} T={T} />
+        <NotesRemindersPanel day={day} onOpen={() => setShowNR(true)} recurringReminders={recurringReminders} T={T} />
+      </>
+    )}
+  </div>
+
+  {showNR && <NotesRemindersDrawer day={day} recurringReminders={recurringReminders} saveRecurring={saveRecurring} updateNote={updateNote} addPlan={addPlan} togPlan={togPlan} delPlan={delPlan} onClose={() => setShowNR(false)} T={T} />}
+</div>
+```
+
+);
+}
+
+// ── NOTES & PLANS ─────────────────────────────────────────────────────────────
+function NotesRemindersPanel({ day, onOpen, recurringReminders, T }) {
+const note = day?.note || “”;
+const plans = day?.plans || [];
+const hasContent = note.trim() || plans.length > 0 || recurringReminders.length > 0;
+return (
+<div onClick={onOpen} style={{ background: T.panelBg, backdropFilter: “blur(14px)”, borderRadius: 14, padding: “10px 12px”, border: `1px solid ${T.tileBorder}`, cursor: “pointer”, marginBottom: 8 }}>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: hasContent ? 8 : 0 }}>
+<span style={{ fontSize: 8, letterSpacing: 3, color: T.sub }}>NOTES & PLANS</span>
+<span style={{ fontSize: 14, color: T.sub, opacity: 0.5 }}>+</span>
+</div>
+{note.trim() && <div style={{ fontSize: 11, color: T.text, opacity: 0.7, lineHeight: 1.5, marginBottom: 4, overflow: “hidden”, display: “-webkit-box”, WebkitLineClamp: 2, WebkitBoxOrient: “vertical” }}>{note}</div>}
+{plans.filter(r => !r.done).map(r => (
+<div key={r.id} style={{ display: “flex”, alignItems: “center”, gap: 6, marginBottom: 3 }}>
+<div style={{ width: 4, height: 4, borderRadius: “50%”, background: “rgba(255,200,50,0.7)”, flexShrink: 0 }} />
+<span style={{ fontSize: 10, color: T.sub, flex: 1, overflow: “hidden”, textOverflow: “ellipsis”, whiteSpace: “nowrap” }}>{r.time && <span style={{ color: “rgba(255,200,50,0.6)”, marginRight: 4 }}>{r.time}</span>}{r.text}</span>
+</div>
+))}
+{recurringReminders.slice(0, 2).map(r => (
+<div key={r.id} style={{ display: “flex”, alignItems: “center”, gap: 6, marginBottom: 3 }}>
+<div style={{ width: 4, height: 4, borderRadius: “50%”, background: “rgba(100,180,255,0.6)”, flexShrink: 0 }} />
+<span style={{ fontSize: 10, color: T.sub, flex: 1, overflow: “hidden”, textOverflow: “ellipsis”, whiteSpace: “nowrap” }}>{r.time && <span style={{ color: “rgba(100,180,255,0.5)”, marginRight: 4 }}>{r.time}</span>}{r.text}</span>
+</div>
+))}
+{!hasContent && <div style={{ fontSize: 10, color: T.sub, opacity: 0.4, letterSpacing: 1 }}>tap to add a note or plan</div>}
+</div>
+);
+}
+
+function NotesRemindersDrawer({ day, recurringReminders, saveRecurring, updateNote, addPlan, togPlan, delPlan, onClose, T }) {
+const [tab, setTab] = useState(“notes”);
+const [note, setNote] = useState(day?.note || “”);
+const [newText, setNewText] = useState(””);
+const [newTime, setNewTime] = useState(””);
+const [recText, setRecText] = useState(””);
+const [recTime, setRecTime] = useState(””);
+const [recFreq, setRecFreq] = useState(“daily”);
+const [recDays, setRecDays] = useState([]);
+const color = “rgba(255,200,50,0.85)”;
+const recColor = “rgba(100,180,255,0.85)”;
+const plans = day?.plans || [];
+
+function submitPlan() {
+if (!newText.trim()) return;
+addPlan(newText.trim(), newTime);
+setNewText(””); setNewTime(””);
+}
+function submitRecurringPlan() {
+if (!recText.trim()) return;
+const r = makeRecurringPlan(recText.trim(), recTime, recFreq, recDays);
+saveRecurring([…recurringReminders, r]);
+setRecText(””); setRecTime(””); setRecDays([]);
+}
+function delRecurringPlan(id) { saveRecurring(recurringReminders.filter(r => r.id !== id)); }
+
+const DAY_LABELS = [“Su”, “Mo”, “Tu”, “We”, “Th”, “Fr”, “Sa”];
+
+return (
+<div style={{ position: “fixed”, inset: 0, zIndex: 500, background: “rgba(0,0,0,0.6)”, display: “flex”, alignItems: “flex-end”, justifyContent: “center” }} onClick={onClose}>
+<div style={{ background: T.isDark ? “#0e0e0e” : “#fdfaf5”, borderRadius: “20px 20px 0 0”, width: “100%”, maxWidth: 480, maxHeight: “88vh”, overflowY: “auto”, border: `1px solid ${T.border}` }} onClick={e => e.stopPropagation()}>
+<div style={{ display: “flex”, justifyContent: “center”, padding: “12px 0 0” }}>
+<div style={{ width: 36, height: 4, borderRadius: 2, background: T.isDark ? “rgba(255,255,255,0.15)” : “rgba(0,0,0,0.15)” }} />
+</div>
+<div style={{ padding: “12px 18px 40px” }}>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 16 }}>
+<span style={{ fontSize: 11, letterSpacing: 3, color: T.text, fontWeight: “bold” }}>NOTES & PLANS</span>
+<button onClick={onClose} style={{ background: “none”, border: “none”, color: T.sub, fontSize: 20, cursor: “pointer” }}>×</button>
+</div>
+
+```
+      <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+        {[["notes", "Notes"], ["plans", "One-time Plan"], ["recurring", "Recurring Plan"]].map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)} style={{ flex: 1, background: tab === id ? (T.isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.08)") : "transparent", border: `1px solid ${tab === id ? (T.isDark ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.15)") : T.border}`, borderRadius: 8, color: tab === id ? T.text : T.sub, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 10, padding: "6px 4px", letterSpacing: 1 }}>{label}</button>
+        ))}
+      </div>
+
+      {tab === "notes" && (
+        <div>
+          <textarea value={note} onChange={e => { setNote(e.target.value); updateNote(e.target.value); }} placeholder="Write anything about today..." rows={7}
+            style={{ ...inp(T.isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.2)", T), resize: "none", lineHeight: 1.7, fontSize: 14 }} />
+          <div style={{ fontSize: 8, color: T.sub, marginTop: 6, letterSpacing: 1 }}>auto-saved as you type</div>
+        </div>
+      )}
+
+      {tab === "plans" && (
+        <div>
+          <div style={{ fontSize: 8, letterSpacing: 2, color: T.sub, marginBottom: 10 }}>FOR THIS DAY</div>
+          {plans.length === 0 && <div style={{ fontSize: 10, color: T.sub, opacity: 0.5, marginBottom: 14, letterSpacing: 1 }}>no plans yet</div>}
+          {plans.map(r => (
+            <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, padding: "8px 10px", background: T.isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", borderRadius: 10, border: `1px solid ${r.done ? "transparent" : T.border}` }}>
+              <div onClick={() => togPlan(r.id)} style={{ width: 16, height: 16, borderRadius: "50%", border: `1.5px solid ${color}`, background: r.done ? color : "transparent", cursor: "pointer", flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                {r.time && <div style={{ fontSize: 9, color, letterSpacing: 1, marginBottom: 2 }}>{r.time}</div>}
+                <div style={{ fontSize: 12, color: r.done ? T.sub : T.text, textDecoration: r.done ? "line-through" : "none" }}>{r.text}</div>
+              </div>
+              <button onClick={() => delPlan(r.id)} style={{ background: "none", border: "none", color: T.sub, fontSize: 16, cursor: "pointer", opacity: 0.4 }}>×</button>
+            </div>
+          ))}
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <input type="time" value={newTime} onChange={e => setNewTime(e.target.value)} style={{ ...inp(color, T), width: 90, fontSize: 14 }} />
+            <input placeholder="Add a plan..." value={newText} onChange={e => setNewText(e.target.value)} onKeyDown={e => e.key === "Enter" && submitPlan()} style={{ ...inp(color, T), flex: 1 }} />
+            <button onClick={submitPlan} style={{ background: `${color}22`, border: `1px solid ${color}55`, borderRadius: 8, color, cursor: "pointer", fontSize: 16, padding: "0 12px", fontFamily: "'Georgia',serif" }}>+</button>
+          </div>
+        </div>
+      )}
+
+      {tab === "recurring" && (
+        <div>
+          <div style={{ fontSize: 8, letterSpacing: 2, color: T.sub, marginBottom: 10 }}>REPEATS EVERY DAY OR WEEK</div>
+          {recurringReminders.length === 0 && <div style={{ fontSize: 10, color: T.sub, opacity: 0.5, marginBottom: 14, letterSpacing: 1 }}>no recurring plans yet</div>}
+          {recurringReminders.map(r => (
+            <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, padding: "8px 10px", background: T.isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", borderRadius: 10, border: `1px solid ${T.border}` }}>
+              <div style={{ width: 8, height: 8, borderRadius: "50%", background: recColor, flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                {r.time && <div style={{ fontSize: 9, color: recColor, letterSpacing: 1, marginBottom: 2 }}>{r.time}</div>}
+                <div style={{ fontSize: 12, color: T.text }}>{r.text}</div>
+                <div style={{ fontSize: 8, color: T.sub, marginTop: 2, letterSpacing: 1 }}>{r.freq === "daily" ? "Every day" : `Every week · ${(r.days || []).map(d => DAY_LABELS[d]).join(", ")}`}</div>
+              </div>
+              <button onClick={() => delRecurringPlan(r.id)} style={{ background: "none", border: "none", color: T.sub, fontSize: 16, cursor: "pointer", opacity: 0.4 }}>×</button>
+            </div>
+          ))}
+          <div style={{ marginTop: 12, padding: 12, background: T.isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", borderRadius: 12, border: `1px solid ${T.border}` }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+              <input type="time" value={recTime} onChange={e => setRecTime(e.target.value)} style={{ ...inp(recColor, T), width: 90, fontSize: 14 }} />
+              <input placeholder="e.g. Morning walk..." value={recText} onChange={e => setRecText(e.target.value)} onKeyDown={e => e.key === "Enter" && submitRecurringPlan()} style={{ ...inp(recColor, T), flex: 1 }} />
+            </div>
+            <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+              {["daily", "weekly"].map(f => (
+                <button key={f} onClick={() => setRecFreq(f)} style={{ flex: 1, background: recFreq === f ? `${recColor}22` : "transparent", border: `1px solid ${recFreq === f ? recColor : T.border}`, borderRadius: 8, color: recFreq === f ? recColor : T.sub, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 10, padding: "6px" }}>{f.charAt(0).toUpperCase() + f.slice(1)}</button>
+              ))}
+            </div>
+            {recFreq === "weekly" && (
+              <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+                {DAY_LABELS.map((dl, i) => (
+                  <button key={i} onClick={() => setRecDays(prev => prev.includes(i) ? prev.filter(x => x !== i) : [...prev, i])} style={{ flex: 1, background: recDays.includes(i) ? `${recColor}33` : "transparent", border: `1px solid ${recDays.includes(i) ? recColor : T.border}`, borderRadius: 6, color: recDays.includes(i) ? recColor : T.sub, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 9, padding: "5px 0" }}>{dl}</button>
+                ))}
+              </div>
+            )}
+            <button onClick={submitRecurringPlan} style={{ width: "100%", background: `${recColor}18`, border: `1px solid ${recColor}44`, borderRadius: 10, color: recColor, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 11, padding: "10px", letterSpacing: 1 }}>Add Recurring Plan</button>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+</div>
+```
+
+);
+}
+
+// ── FITNESS PANEL ─────────────────────────────────────────────────────────────
+function FitnessPanelClean({ day, onOpenFitness, togWorkout, togMeal, updateWorkoutField, updMeal, T }) {
+const color = T.CAT.fitness.color;
+const { pressing, handlers } = useLongPress(onOpenFitness, 600);
+const [openId, setOpenId] = useState(null);
+const tapTimer = useRef({});
+
+function handleTap(id, onSingle, onDouble) {
+if (tapTimer.current[id]) {
+clearTimeout(tapTimer.current[id]);
+delete tapTimer.current[id];
+onDouble();
+} else {
+tapTimer.current[id] = setTimeout(() => {
+delete tapTimer.current[id];
+onSingle();
+}, 220);
+}
+}
+
+return (
+<div {…handlers} style={{ background: T.panelBg, backdropFilter: “blur(14px)”, borderRadius: 14, padding: “12px 10px 10px”, border: `1px solid ${color}${T.isDark ? "22" : "33"}`, boxShadow: T.isDark ? “none” : `0 2px 14px ${color}14`, userSelect: “none”, minWidth: 0, width: “100%”, boxSizing: “border-box”, overflow: “hidden” }}>
+<style>{`@keyframes fillBar{from{width:0%}to{width:100%}}`}</style>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 10, paddingLeft: 2 }}>
+<span style={{ fontSize: 8, letterSpacing: 3, color: pressing ? color : `${color}${T.isDark ? "99" : "cc"}`, transition: “color 0.2s” }}>FITNESS</span>
+<div style={{ width: 60, height: 2, borderRadius: 2, overflow: “hidden”, background: `${color}22`, opacity: pressing ? 1 : 0, transition: “opacity 0.15s” }}>
+{pressing && <div style={{ height: “100%”, background: color, animation: “fillBar 0.6s linear forwards” }} />}
+</div>
+<div style={{ fontSize: 7, color: T.sub, letterSpacing: 1, opacity: pressing ? 1 : 0.4, transition: “opacity 0.2s”, width: 48, textAlign: “right” }}>
+{pressing ? “⏳” : “hold”}
+</div>
+</div>
+
+```
+  {(day.workoutSessions || []).map((session) => {
+    const preset = WORKOUT_PRESETS.find(p => p.id === session.typeId) || WORKOUT_PRESETS[0];
+    const isOpen = openId === session.id;
+    const hasFields = session.typeId === "custom" ? true : preset.fields.length > 0;
+    return (
+      <div key={session.id} style={{ marginBottom: 4 }}>
+        <div onClick={e => { e.stopPropagation(); handleTap(session.id, () => togWorkout(session.id), () => hasFields && setOpenId(p => p === session.id ? null : session.id)); }}
+          style={{ display: "flex", alignItems: "center", gap: 8, background: session.done ? `${color}1a` : T.tileBg, border: `1px solid ${session.done ? `${color}${T.isDark ? "55" : "77"}` : T.tileBorder}`, borderRadius: 8, padding: "7px 9px", cursor: "pointer", transition: "all 0.2s" }}>
+          <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: session.done ? color : T.dot, boxShadow: session.done ? `0 0 6px ${color}88` : "none", transition: "all 0.3s" }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: "bold", color: session.done ? (T.isDark ? "#fff" : "#111") : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.45)"), letterSpacing: 0.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {preset.icon} {session.typeId === "custom" && session.customName ? session.customName : preset.label}
+            </div>
+          </div>
+          {hasFields && <div style={{ fontSize: 8, color: `${color}55`, flexShrink: 0 }}>{isOpen ? "▲" : "▼"}</div>}
+        </div>
+        {isOpen && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 5, paddingLeft: 2 }}>
+            {(session.typeId === "custom" && session.customName
+              ? [{ key: "notes", placeholder: `How was ${session.customName}?`, multiline: true }]
+              : preset.fields
+            ).map(field => {
+              const safeData = session.data || {};
+              return field.multiline ? (
+                <textarea key={field.key} placeholder={field.placeholder} value={safeData[field.key] || ""} onChange={e => updateWorkoutField(session.id, field.key, e.target.value)} rows={3} style={{ ...inp(color, T), resize: "none" }} />
+              ) : (
+                <input key={field.key} placeholder={field.placeholder} value={safeData[field.key] || ""} onChange={e => updateWorkoutField(session.id, field.key, e.target.value)} style={inp(color, T)} />
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  })}
+
+  <div style={{ height: 1, background: T.isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", margin: "6px 0" }} />
+
+  {day.meals.map(m => {
+    const mealId = `meal-${m.id}`;
+    const isOpen = openId === mealId;
+    return (
+      <div key={m.id} style={{ marginBottom: 4 }}>
+        <div onClick={e => { e.stopPropagation(); handleTap(mealId, () => togMeal(m.id), () => setOpenId(p => p === mealId ? null : mealId)); }}
+          style={{ display: "flex", alignItems: "center", gap: 8, background: m.done ? `${color}1a` : T.tileBg, border: `1px solid ${m.done ? `${color}${T.isDark ? "55" : "77"}` : T.tileBorder}`, borderRadius: 8, padding: "7px 9px", cursor: "pointer", transition: "all 0.2s" }}>
+          <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: m.done ? color : T.dot, boxShadow: m.done ? `0 0 6px ${color}88` : "none", transition: "all 0.3s" }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: "bold", color: m.done ? (T.isDark ? "#fff" : "#111") : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.45)"), letterSpacing: 0.5 }}>{m.label}</div>
+            {m.content && !isOpen && <div style={{ fontSize: 9, color: `${color}99`, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.content}</div>}
+          </div>
+          <div style={{ fontSize: 8, color: `${color}55`, flexShrink: 0 }}>{isOpen ? "▲" : "▼"}</div>
+        </div>
+        {isOpen && (
+          <input autoFocus placeholder="What did you eat?" value={m.content} onChange={e => updMeal(m.id, "content", e.target.value)} style={{ ...inp(color, T), marginTop: 5 }} />
+        )}
+      </div>
+    );
+  })}
+</div>
+```
+
+);
+}
+
+// ── WORK PANEL ────────────────────────────────────────────────────────────────
+function WorkPanel({ day, onOpenWork, everyTasks, togEveryTask, addTodayTask, togTodayTask, remTodayTask, T }) {
+const color = T.CAT.work.color;
+const { pressing, handlers } = useLongPress(onOpenWork, 600);
+const [newTask, setNewTask] = useState(””);
+const tasks = day.todayTasks || [];
+
+function submit() {
+if (!newTask.trim()) return;
+addTodayTask(newTask.trim());
+setNewTask(””);
+}
+
+return (
+<div {…handlers} style={{ background: T.panelBg, backdropFilter: “blur(14px)”, borderRadius: 14, padding: “12px 10px 10px”, border: `1px solid ${color}${T.isDark ? "22" : "33"}`, boxShadow: T.isDark ? “none” : `0 2px 14px ${color}14`, userSelect: “none”, minWidth: 0, width: “100%”, boxSizing: “border-box”, overflow: “hidden” }}>
+<style>{`@keyframes fillBar{from{width:0%}to{width:100%}}`}</style>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 10, paddingLeft: 2 }}>
+<span style={{ fontSize: 8, letterSpacing: 3, color: pressing ? color : `${color}${T.isDark ? "99" : "cc"}`, transition: “color 0.2s” }}>WORK</span>
+<div style={{ display: “flex”, alignItems: “center”, gap: 6 }}>
+<div style={{ width: 40, height: 2, borderRadius: 2, overflow: “hidden”, background: `${color}22`, opacity: pressing ? 1 : 0, transition: “opacity 0.15s” }}>
+{pressing && <div style={{ height: “100%”, background: color, animation: “fillBar 0.6s linear forwards” }} />}
+</div>
+<div style={{ fontSize: 7, color: T.sub, letterSpacing: 1, opacity: pressing ? 1 : 0.4, transition: “opacity 0.2s” }}>{pressing ? “⏳” : “hold”}</div>
+</div>
+</div>
+
+```
+  {everyTasks.length > 0 && (
+    <>
+      <div style={{ fontSize: 7, letterSpacing: 2, color: `${color}55`, marginBottom: 5 }}>EVERYDAY</div>
+      {everyTasks.map(t => {
+        const done = (day.everyDone || []).includes(t.id);
+        return (
+          <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, background: done ? `${color}1a` : T.tileBg, border: `1px solid ${done ? `${color}${T.isDark ? "55" : "77"}` : T.tileBorder}`, borderRadius: 8, padding: "7px 9px", cursor: "pointer", marginBottom: 4, transition: "all 0.2s" }} onClick={() => togEveryTask(t.id)}>
+            <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: done ? color : T.dot, boxShadow: done ? `0 0 6px ${color}88` : "none", transition: "all 0.3s" }} />
+            <div style={{ flex: 1, fontSize: 11, fontWeight: "bold", color: done ? (T.isDark ? "#fff" : "#111") : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.45)"), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", letterSpacing: 0.5 }}>{t.label}</div>
+          </div>
+        );
+      })}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, margin: "7px 0 6px" }}>
+        <div style={{ fontSize: 7, letterSpacing: 2, color: `${color}55`, flexShrink: 0 }}>TODAY</div>
+        <div style={{ flex: 1, height: 1, background: T.isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.06)" }} />
+      </div>
+    </>
+  )}
+
+  {everyTasks.length === 0 && tasks.length === 0 && (
+    <div style={{ fontSize: 9, color: T.sub, textAlign: "center", padding: "10px 4px 6px", letterSpacing: 1, lineHeight: 1.8 }}>
+      Hold to add everyday work<br />or add today's tasks below
+    </div>
+  )}
+
+  {tasks.map(t => (
+    <div key={t.id} onClick={() => togTodayTask(t.id)} style={{ display: "flex", alignItems: "center", gap: 8, background: t.done ? `${color}1a` : T.tileBg, border: `1px solid ${t.done ? `${color}${T.isDark ? "55" : "77"}` : T.tileBorder}`, borderRadius: 8, padding: "7px 9px", marginBottom: 4, transition: "all 0.2s", minWidth: 0, cursor: "pointer" }}>
+      <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: t.done ? color : T.dot, boxShadow: t.done ? `0 0 6px ${color}88` : "none", transition: "all 0.3s" }} />
+      <div style={{ flex: 1, fontSize: 11, fontWeight: "bold", color: t.done ? (T.isDark ? "#fff" : "#111") : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.45)"), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", letterSpacing: 0.5 }}>{t.label}</div>
+      <div onClick={e => { e.stopPropagation(); remTodayTask(t.id); }} style={{ fontSize: 14, color: T.sub, cursor: "pointer", flexShrink: 0, opacity: 0.4, padding: "0 2px", lineHeight: 1 }}>×</div>
+    </div>
+  ))}
+
+  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: tasks.length > 0 ? 6 : 2 }} onClick={e => e.stopPropagation()}>
+    <div style={{ width: 13, height: 13, borderRadius: "50%", flexShrink: 0, border: `1.5px dashed ${color}33`, background: "transparent" }} />
+    <input placeholder="add for today..." value={newTask} onChange={e => setNewTask(e.target.value)} onKeyDown={e => e.key === "Enter" && submit()}
+      style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 11, color: T.text, fontFamily: "'Georgia',serif", padding: "2px 0", caretColor: color }} />
+    {newTask.trim() && <div onClick={submit} style={{ fontSize: 13, color, cursor: "pointer", flexShrink: 0 }}>+</div>}
+  </div>
+</div>
+```
+
+);
+}
+
+// ── WORK DRAWER ───────────────────────────────────────────────────────────────
+function WorkDrawer({ everyTasks, todayTasks, onSave, onClose, T }) {
+const { isDark, CAT } = T;
+const color = CAT.work.color;
+const [local, setLocal] = useState(everyTasks.map(t => ({ …t })));
+const [todayLocal, setTodayLocal] = useState(todayTasks.map(t => ({ …t })));
+const [newEvery, setNewEvery] = useState(””);
+const [newToday, setNewToday] = useState(””);
+const overlayBg = isDark ? “rgba(0,0,0,0.85)” : “rgba(0,0,0,0.5)”;
+const modalBg   = isDark ? “#0d0d0d” : “#fdfaf5”;
+const borderCol = isDark ? “rgba(255,255,255,0.08)” : “rgba(0,0,0,0.1)”;
+
+function addTask() {
+if (!newEvery.trim()) return;
+setLocal(prev => […prev, makeEveryTask(newEvery.trim())]);
+setNewEvery(””);
+}
+function addTodayItem() {
+if (!newToday.trim()) return;
+setTodayLocal(prev => […prev, makeTodayTask(newToday.trim())]);
+setNewToday(””);
+}
+
+return (
+<div style={{ position: “fixed”, inset: 0, zIndex: 999, background: overlayBg, display: “flex”, alignItems: “flex-end”, justifyContent: “center” }} onClick={onClose}>
+<div style={{ background: modalBg, borderRadius: “20px 20px 0 0”, width: “100%”, maxWidth: 480, maxHeight: “85vh”, overflowY: “auto”, padding: “0 0 40px”, border: `1px solid ${borderCol}` }} onClick={e => e.stopPropagation()}>
+<div style={{ display: “flex”, justifyContent: “center”, padding: “12px 0 0” }}>
+<div style={{ width: 40, height: 4, borderRadius: 2, background: isDark ? “rgba(255,255,255,0.15)” : “rgba(0,0,0,0.15)” }} />
+</div>
+<div style={{ padding: “14px 18px 0” }}>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 16 }}>
+<div>
+<div style={{ fontSize: 14, fontWeight: “bold”, letterSpacing: 3, color: T.text }}>WORK</div>
+<div style={{ fontSize: 9, color: T.sub, letterSpacing: 2, marginTop: 2 }}>MANAGE YOUR WORK BLOCKS</div>
+</div>
+<button onClick={onClose} style={{ background: “none”, border: “none”, color: T.sub, cursor: “pointer”, fontSize: 20, lineHeight: 1 }}>×</button>
+</div>
+
+```
+      <div style={{ fontSize: 9, letterSpacing: 2, color, marginBottom: 8 }}>EVERYDAY</div>
+      <div style={{ fontSize: 9, color: T.sub, letterSpacing: 1, marginBottom: 10 }}>Always there · never disappears</div>
+      <div style={{ marginBottom: 10 }}>
+        {local.length === 0 && <div style={{ fontSize: 10, color: T.sub, textAlign: "center", padding: "10px 0", letterSpacing: 1 }}>Nothing added yet</div>}
+        {local.map(t => (
+          <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", border: `1px solid ${borderCol}`, borderRadius: 10, marginBottom: 6 }}>
+            <div style={{ width: 7, height: 7, borderRadius: "50%", background: `${color}66`, flexShrink: 0 }} />
+            <div style={{ flex: 1, fontSize: 13, color: T.text }}>{t.label}</div>
+            <div onClick={() => setLocal(prev => prev.filter(x => x.id !== t.id))} style={{ fontSize: 18, color: T.sub, cursor: "pointer", opacity: 0.5, lineHeight: 1 }}>×</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        <input autoFocus placeholder="e.g. Deep Work, Trading, Cafe..." value={newEvery}
+          onChange={e => { if (e.target.value.length <= 30) setNewEvery(e.target.value); }}
+          onKeyDown={e => e.key === "Enter" && addTask()} maxLength={30} style={{ ...inp(color, T), flex: 1 }} />
+        <button onClick={addTask} style={{ background: `${color}22`, border: `1px solid ${color}44`, borderRadius: 8, color, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 14, padding: "0 14px" }}>+</button>
+      </div>
+
+      <div style={{ height: 1, background: borderCol, marginBottom: 16 }} />
+
+      <div style={{ fontSize: 9, letterSpacing: 2, color, marginBottom: 8 }}>TODAY</div>
+      <div style={{ fontSize: 9, color: T.sub, letterSpacing: 1, marginBottom: 10 }}>Clears tomorrow · fresh every day</div>
+      <div style={{ marginBottom: 10 }}>
+        {todayLocal.length === 0 && <div style={{ fontSize: 10, color: T.sub, textAlign: "center", padding: "10px 0", letterSpacing: 1 }}>Nothing added yet</div>}
+        {todayLocal.map(t => (
+          <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", border: `1px solid ${borderCol}`, borderRadius: 10, marginBottom: 6 }}>
+            <div style={{ width: 7, height: 7, borderRadius: "50%", background: `${color}44`, flexShrink: 0 }} />
+            <div style={{ flex: 1, fontSize: 13, color: T.text }}>{t.label}</div>
+            <div onClick={() => setTodayLocal(prev => prev.filter(x => x.id !== t.id))} style={{ fontSize: 18, color: T.sub, cursor: "pointer", opacity: 0.5, lineHeight: 1 }}>×</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        <input placeholder="e.g. Call Ahmed, Submit report..." value={newToday}
+          onChange={e => { if (e.target.value.length <= 30) setNewToday(e.target.value); }}
+          onKeyDown={e => e.key === "Enter" && addTodayItem()} maxLength={30} style={{ ...inp(color, T), flex: 1 }} />
+        <button onClick={addTodayItem} style={{ background: `${color}22`, border: `1px solid ${color}44`, borderRadius: 8, color, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 14, padding: "0 14px" }}>+</button>
+      </div>
+
+      <button onClick={() => { onSave(local, todayLocal); onClose(); }} style={{ width: "100%", background: `${color}22`, border: `1px solid ${color}55`, borderRadius: 10, color, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 12, letterSpacing: 2, padding: "12px", fontWeight: "bold" }}>
+        SAVE
+      </button>
+    </div>
+  </div>
+</div>
+```
+
+);
+}
+
+// ── SELF PANEL ────────────────────────────────────────────────────────────────
+function SelfPanel({ day, onOpenSelf, togSelf, updateSelfField, T }) {
+const color = T.CAT.self.color;
+const { pressing, handlers } = useLongPress(onOpenSelf, 600);
+const [openId, setOpenId] = useState(null);
+const tapTimer = useRef({});
+
+function handleTap(id, onSingle, onDouble) {
+if (tapTimer.current[id]) {
+clearTimeout(tapTimer.current[id]);
+delete tapTimer.current[id];
+onDouble();
+} else {
+tapTimer.current[id] = setTimeout(() => {
+delete tapTimer.current[id];
+onSingle();
+}, 220);
+}
+}
+
+const selfItems = day.selfItems || [];
+
+return (
+<div {…handlers} style={{ background: T.panelBg, backdropFilter: “blur(14px)”, borderRadius: 14, padding: “12px 10px 10px”, border: `1px solid ${color}${T.isDark ? "22" : "33"}`, boxShadow: T.isDark ? “none” : `0 2px 14px ${color}14`, userSelect: “none”, minWidth: 0, width: “100%”, boxSizing: “border-box”, overflow: “hidden” }}>
+<style>{`@keyframes fillBar{from{width:0%}to{width:100%}}`}</style>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 10, paddingLeft: 2 }}>
+<span style={{ fontSize: 8, letterSpacing: 3, color: pressing ? color : `${color}${T.isDark ? "99" : "cc"}`, transition: “color 0.2s” }}>SELF</span>
+<div style={{ display: “flex”, alignItems: “center”, gap: 6 }}>
+<div style={{ width: 40, height: 2, borderRadius: 2, overflow: “hidden”, background: `${color}22`, opacity: pressing ? 1 : 0, transition: “opacity 0.15s” }}>
+{pressing && <div style={{ height: “100%”, background: color, animation: “fillBar 0.6s linear forwards” }} />}
+</div>
+<div style={{ fontSize: 7, color: T.sub, letterSpacing: 1, opacity: pressing ? 1 : 0.4, transition: “opacity 0.2s” }}>{pressing ? “⏳” : “hold”}</div>
+</div>
+</div>
+
+```
+  {selfItems.length === 0 && (
+    <div style={{ fontSize: 10, color: T.sub, textAlign: "center", padding: "16px 8px", letterSpacing: 1 }}>
+      Hold anywhere<br />to choose habits
+    </div>
+  )}
+
+  {selfItems.map(item => {
+    let habit = SELF_HABITS.find(h => h.id === item.habitId);
+    if (!habit && item.habitId.startsWith("custom_")) {
+      const label = item.habitId.includes("::") ? item.habitId.split("::")[1] : item.habitId.replace("custom_", "").replace(/_\d+$/, "").replace(/_/g, " ");
+      habit = { id: item.habitId, label, icon: "⭐", log: [{ key: "note", placeholder: "Log anything...", multiline: true }] };
+    }
+    if (!habit) habit = SELF_HABITS[SELF_HABITS.length - 1];
+    const isOpen = openId === item.id;
+    const hasLog = habit.log && habit.log.length > 0;
+    return (
+      <div key={item.id} style={{ marginBottom: 4 }}>
+        <div onClick={e => { e.stopPropagation(); handleTap(item.id, () => togSelf(item.id), () => hasLog && setOpenId(p => p === item.id ? null : item.id)); }}
+          style={{ display: "flex", alignItems: "center", gap: 8, background: item.done ? `${color}1a` : T.tileBg, border: `1px solid ${item.done ? `${color}${T.isDark ? "55" : "77"}` : T.tileBorder}`, borderRadius: 8, padding: "7px 9px", cursor: "pointer", transition: "all 0.2s", overflow: "hidden" }}>
+          <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: item.done ? color : T.dot, boxShadow: item.done ? `0 0 6px ${color}88` : "none", transition: "all 0.3s" }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: "bold", color: item.done ? (T.isDark ? "#fff" : "#111") : (T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.45)"), letterSpacing: 0.5, lineHeight: 1.3, wordBreak: "break-word", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+              {habit.icon} {habit.label}
+            </div>
+            {!isOpen && habit.log[0] && item.data[habit.log[0].key] && (
+              <div style={{ fontSize: 9, color: `${color}99`, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.data[habit.log[0].key]}</div>
+            )}
+          </div>
+          {hasLog && <div style={{ fontSize: 8, color: `${color}55`, flexShrink: 0 }}>{isOpen ? "▲" : "▼"}</div>}
+        </div>
+        {isOpen && hasLog && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 5, paddingLeft: 2 }}>
+            {habit.log.map(field => field.multiline ? (
+              <textarea key={field.key} placeholder={field.placeholder} value={item.data[field.key] || ""} onChange={e => updateSelfField(item.id, field.key, e.target.value)} rows={3} style={{ ...inp(color, T), resize: "none" }} />
+            ) : (
+              <input key={field.key} placeholder={field.placeholder} value={item.data[field.key] || ""} onChange={e => updateSelfField(item.id, field.key, e.target.value)} style={inp(color, T)} />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  })}
+</div>
+```
+
+);
+}
+
+// ── SELF DRAWER ───────────────────────────────────────────────────────────────
+function SelfDrawer({ selfHabitIds, onSave, onClose, T }) {
+const { isDark, CAT } = T;
+const color = CAT.self.color;
+const validIds = selfHabitIds.filter(id => id !== “custom” && (!id.startsWith(“custom_”) || id.includes(”::”)));
+const [selected, setSelected] = useState(validIds);
+const [customItems, setCustomItems] = useState(() =>
+validIds.filter(id => id.startsWith(“custom_”)).map(id => ({ id, label: id.split(”::”)[1] }))
+);
+const [showCustomInput, setShowCustomInput] = useState(false);
+const [customLabel, setCustomLabel] = useState(””);
+const overlayBg = isDark ? “rgba(0,0,0,0.85)” : “rgba(0,0,0,0.5)”;
+const modalBg   = isDark ? “#0d0d0d” : “#fdfaf5”;
+const borderCol = isDark ? “rgba(255,255,255,0.08)” : “rgba(0,0,0,0.1)”;
+
+function toggle(id) {
+if (id === “custom”) { setShowCustomInput(true); return; }
+setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : […prev, id]);
+}
+
+function addCustom() {
+if (!customLabel.trim()) return;
+const id = “custom_” + Date.now() + “::” + customLabel.trim();
+const newItem = { id, label: customLabel.trim() };
+setCustomItems(prev => […prev, newItem]);
+setSelected(prev => […prev, id]);
+setCustomLabel(””);
+setShowCustomInput(false);
+}
+
+const baseHabits = SELF_HABITS.filter(h => h.id !== “custom”);
+
+return (
+<div style={{ position: “fixed”, inset: 0, zIndex: 999, background: overlayBg, display: “flex”, alignItems: “flex-end”, justifyContent: “center” }} onClick={onClose}>
+<div style={{ background: modalBg, borderRadius: “20px 20px 0 0”, width: “100%”, maxWidth: 480, maxHeight: “90vh”, overflowY: “auto”, padding: “0 0 40px”, border: `1px solid ${borderCol}` }} onClick={e => e.stopPropagation()}>
+<div style={{ display: “flex”, justifyContent: “center”, padding: “12px 0 0” }}>
+<div style={{ width: 40, height: 4, borderRadius: 2, background: isDark ? “rgba(255,255,255,0.15)” : “rgba(0,0,0,0.15)” }} />
+</div>
+<div style={{ padding: “14px 18px 0” }}>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 6 }}>
+<div>
+<div style={{ fontSize: 14, fontWeight: “bold”, letterSpacing: 3, color: T.text }}>SELF CARE</div>
+<div style={{ fontSize: 9, color: T.sub, letterSpacing: 2, marginTop: 2 }}>TAP TO ADD · TAP AGAIN TO REMOVE</div>
+</div>
+<button onClick={onClose} style={{ background: “none”, border: “none”, color: T.sub, cursor: “pointer”, fontSize: 20, lineHeight: 1 }}>×</button>
+</div>
+
+```
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 8, marginTop: 14 }}>
+        {baseHabits.map(h => {
+          const isOn = selected.includes(h.id);
+          return (
+            <div key={h.id} onClick={() => toggle(h.id)} style={{ background: isOn ? `${color}22` : (isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"), border: `1px solid ${isOn ? color + "77" : borderCol}`, borderRadius: 12, padding: "10px 8px", cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
+              <div style={{ fontSize: 22, marginBottom: 4 }}>{h.icon}</div>
+              <div style={{ fontSize: 8, letterSpacing: 1, color: isOn ? color : T.sub, fontWeight: isOn ? "bold" : "normal", lineHeight: 1.3 }}>{h.label.toUpperCase()}</div>
+            </div>
+          );
+        })}
+
+        {customItems.map(c => {
+          const isOn = selected.includes(c.id);
+          return (
+            <div key={c.id} style={{ position: "relative" }}>
+              <div onClick={() => setSelected(prev => prev.includes(c.id) ? prev.filter(x => x !== c.id) : [...prev, c.id])} style={{ background: isOn ? `${color}22` : (isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.04)"), border: `1px solid ${isOn ? color + "77" : borderCol}`, borderRadius: 12, padding: "10px 8px", cursor: "pointer", textAlign: "center", transition: "all 0.2s" }}>
+                <div style={{ fontSize: 22, marginBottom: 4 }}>⭐</div>
+                <div style={{ fontSize: 8, letterSpacing: 1, color: isOn ? color : T.sub, fontWeight: isOn ? "bold" : "normal", lineHeight: 1.3 }}>{c.label.toUpperCase()}</div>
+              </div>
+              <div onClick={() => { setCustomItems(prev => prev.filter(x => x.id !== c.id)); setSelected(prev => prev.filter(x => x !== c.id)); }}
+                style={{ position: "absolute", top: -6, right: -6, width: 22, height: 22, borderRadius: "50%", background: isDark ? "#333" : "#ddd", border: `1px solid ${isDark ? "#555" : "#bbb"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: isDark ? "#fff" : "#333", cursor: "pointer", fontWeight: "bold", lineHeight: 1 }}>×</div>
+            </div>
+          );
+        })}
+
+        <div onClick={() => setShowCustomInput(true)} style={{ background: "transparent", border: `1px dashed ${color}${isDark ? "44" : "66"}`, borderRadius: 12, padding: "10px 8px", cursor: "pointer", textAlign: "center" }}>
+          <div style={{ fontSize: 22, marginBottom: 4 }}>＋</div>
+          <div style={{ fontSize: 8, letterSpacing: 1, color: `${color}88`, lineHeight: 1.3 }}>CUSTOM</div>
+        </div>
+      </div>
+
+      {showCustomInput && (
+        <div style={{ background: isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)", borderRadius: 10, padding: 12, marginBottom: 12, border: `1px solid ${color}33` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ fontSize: 9, letterSpacing: 2, color: T.sub }}>NAME YOUR HABIT</div>
+            <div style={{ fontSize: 9, color: customLabel.length > 20 ? color : T.sub }}>{customLabel.length}/25</div>
+          </div>
+          <input autoFocus placeholder="e.g. Stretch, Walk dog..." value={customLabel}
+            onChange={e => { if (e.target.value.length <= 25) setCustomLabel(e.target.value); }}
+            onKeyDown={e => e.key === "Enter" && addCustom()} maxLength={25} style={{ ...inp(color, T), marginBottom: 8 }} />
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={addCustom} style={{ flex: 1, background: `${color}22`, border: `1px solid ${color}55`, borderRadius: 7, color, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 11, padding: "7px", letterSpacing: 1 }}>ADD</button>
+            <button onClick={() => { setShowCustomInput(false); setCustomLabel(""); }} style={{ flex: 1, background: "transparent", border: `1px solid ${borderCol}`, borderRadius: 7, color: T.sub, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 11, padding: "7px" }}>CANCEL</button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ fontSize: 9, color: T.sub, letterSpacing: 1, textAlign: "center", marginBottom: 16 }}>
+        {selected.length} habit{selected.length !== 1 ? "s" : ""} selected
+      </div>
+
+      <button onClick={() => { onSave(selected); onClose(); }} style={{ width: "100%", background: `${color}22`, border: `1px solid ${color}55`, borderRadius: 10, color, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 12, letterSpacing: 2, padding: "12px", fontWeight: "bold" }}>
+        SAVE HABITS
+      </button>
+    </div>
+  </div>
+</div>
+```
+
+);
+}
+
+// ── FAITH PANEL ───────────────────────────────────────────────────────────────
+function FaithPanel({ day, practice, ramzan, togF, tog, onOpenPicker, T }) {
+const color = T.CAT.faith.color;
+const { pressing, handlers } = useLongPress(onOpenPicker, 600);
+
+return (
+<div {…handlers} style={{ background: T.panelBg, backdropFilter: “blur(14px)”, borderRadius: 14, padding: “12px 10px 10px”, border: `1px solid ${color}${T.isDark ? "22" : "33"}`, boxShadow: T.isDark ? “none” : `0 2px 14px ${color}14`, userSelect: “none”, cursor: “pointer” }}>
+<style>{`@keyframes fillBar{from{width:0%}to{width:100%}}`}</style>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 10, paddingLeft: 2 }}>
+<div style={{ display: “flex”, alignItems: “center”, gap: 6 }}>
+<span style={{ fontSize: 8, letterSpacing: 3, color: pressing ? color : `${color}${T.isDark ? "99" : "cc"}`, transition: “color 0.2s” }}>FAITH</span>
+<span style={{ fontSize: 7, color: T.isDark ? “rgba(255,255,255,0.12)” : “rgba(0,0,0,0.15)”, fontStyle: “italic”, display: “flex”, alignItems: “center”, gap: 3 }}>
+<span>{practice.icon}</span><span>{practice.label}</span>
+</span>
+</div>
+<div style={{ display: “flex”, alignItems: “center”, gap: 6 }}>
+<div style={{ width: 40, height: 2, borderRadius: 2, overflow: “hidden”, background: `${color}22`, opacity: pressing ? 1 : 0, transition: “opacity 0.15s” }}>
+{pressing && <div style={{ height: “100%”, background: color, animation: “fillBar 0.6s linear forwards” }} />}
+</div>
+<div style={{ fontSize: 7, color: T.sub, letterSpacing: 1, opacity: pressing ? 1 : 0.4, transition: “opacity 0.2s” }}>{pressing ? “⏳” : “hold”}</div>
+</div>
+</div>
+{(day.faithItems || []).map(f => (
+<div key={f.id} style={{ marginBottom: 4 }}>
+<Tile done={f.done} onToggle={() => togF(f.id)} label={f.label} color={color} T={T} compact />
+</div>
+))}
+{ramzan && (
+<>
+<div style={{ height: 6 }} />
+<div style={{ fontSize: 8, letterSpacing: 2, color: `${color}88`, marginBottom: 5 }}>RAMZAN</div>
+<Tile done={day.taraweeh}  onToggle={() => tog(“taraweeh”)}  label=“Taraweeh”   color={color} T={T} compact />
+<div style={{ height: 4 }} />
+<Tile done={day.dhikr1000} onToggle={() => tog(“dhikr1000”)} label=“Dhikr 1000” color={color} T={T} compact />
+<div style={{ height: 4 }} />
+<Tile done={day.isthikfar} onToggle={() => tog(“isthikfar”)} label=“Isthikfar”  color={color} T={T} compact />
+</>
+)}
+{(!day.faithItems || day.faithItems.length === 0) && (
+<div style={{ fontSize: 10, color: T.sub, textAlign: “center”, padding: “16px 8px”, letterSpacing: 1 }}>
+Hold anywhere<br />to choose your practice
+</div>
+)}
+</div>
+);
+}
+
+// ── SHARED COMPONENTS ─────────────────────────────────────────────────────────
+function Tile({ done, onToggle, label, sub, color, compact, T }) {
+return (
+<div onClick={e => { e.stopPropagation(); onToggle(); }} style={{ display: “flex”, alignItems: “center”, gap: 8, background: done ? `${color}1a` : T.tileBg, border: `1px solid ${done ? `${color}${T.isDark ? “55” : “77”}` : T.tileBorder}`, borderRadius: 8, padding: compact ? “7px 9px” : “9px 10px”, cursor: “pointer”, transition: “all 0.2s”, marginBottom: compact ? 0 : 2 }}>
+<div style={{ width: 7, height: 7, borderRadius: “50%”, flexShrink: 0, background: done ? color : T.dot, boxShadow: done ? `0 0 6px ${color}88` : “none”, transition: “all 0.3s” }} />
+<div style={{ flex: 1, minWidth: 0 }}>
+<div style={{ fontSize: compact ? 11 : 12, fontWeight: “bold”, color: done ? (T.isDark ? “#fff” : “#111”) : (T.isDark ? “rgba(255,255,255,0.55)” : “rgba(0,0,0,0.45)”), letterSpacing: 0.5, whiteSpace: “nowrap”, overflow: “hidden”, textOverflow: “ellipsis” }}>{label}</div>
+{sub && <div style={{ fontSize: 9, color: `${color}99`, marginTop: 1, whiteSpace: “nowrap”, overflow: “hidden”, textOverflow: “ellipsis” }}>{sub}</div>}
+</div>
+</div>
+);
+}
+
+// ── DISCIPLINE PANEL ──────────────────────────────────────────────────────────
+function DisciplinePanel({ addictions, day, logSlip, addAddiction, removeAddiction, renameAddiction, T }) {
+const color = T.CAT.toxins.color;
+const [showAdd, setShowAdd] = useState(false);
+const [newName, setNewName] = useState(””);
+const [confirmId, setConfirmId] = useState(null);
+const [renaming, setRenaming] = useState(false);
+const [renameVal, setRenameVal] = useState(””);
+
+const confirmAddiction = confirmId ? addictions.find(a => a.id === confirmId) : null;
+
+function submit() {
+if (!newName.trim()) return;
+addAddiction(newName.trim());
+setNewName(””);
+setShowAdd(false);
+}
+
+function handleRename() {
+if (!renameVal.trim() || !confirmId) return;
+renameAddiction(confirmId, renameVal.trim());
+setConfirmId(null);
+setRenaming(false);
+}
+
+return (
+<div style={{ background: T.panelBg, backdropFilter: “blur(14px)”, borderRadius: 14, padding: “12px 14px”, border: `1px solid ${color}${T.isDark ? "22" : "33"}`, boxShadow: T.isDark ? “none” : `0 2px 14px ${color}14`, marginBottom: 8 }}>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 10 }}>
+<span style={{ fontSize: 8, letterSpacing: 3, color: `${color}${T.isDark ? "99" : "cc"}` }}>DISCIPLINE</span>
+<button onClick={() => setShowAdd(p => !p)} style={{ background: `${color}18`, border: `1px solid ${color}33`, borderRadius: 6, color, cursor: “pointer”, fontSize: 9, padding: “4px 10px”, fontFamily: “‘Georgia’,serif”, letterSpacing: 1 }}>{showAdd ? “cancel” : “+ add”}</button>
+</div>
+
+```
+  {/* Orphaned slips from deleted addictions */}
+  {(() => {
+    const activeIds = addictions.map(a => a.id);
+    const orphanSlips = (day.toxins || []).filter(t => t.includes("||") && !activeIds.includes(t.split("||")[0]));
+    if (orphanSlips.length === 0) return null;
+    const grouped = {};
+    orphanSlips.forEach(t => {
+      const parts = t.split("||");
+      const name = parts.length >= 3 ? parts[1] : "Addiction";
+      const time = parts.length >= 3 ? parts[2] : parts[1];
+      if (!grouped[name]) grouped[name] = [];
+      grouped[name].push(time);
+    });
+    return Object.entries(grouped).map(([name, times]) => (
+      <div key={name} style={{ marginBottom: 8, background: `${color}10`, border: `1px solid ${color}22`, borderRadius: 10, padding: "10px 12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: times.length > 0 ? 6 : 0 }}>
+          <div style={{ textAlign: "center", minWidth: 36 }}>
+            <div style={{ fontSize: 20, fontWeight: "bold", color, lineHeight: 1 }}>{times.length}</div>
+            <div style={{ fontSize: 7, color: T.sub, letterSpacing: 1, marginTop: 2 }}>SLIPS</div>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12, fontWeight: "bold", color: T.text, letterSpacing: 0.5 }}>{name}</div>
+            <div style={{ fontSize: 9, color: `${color}88`, marginTop: 2, letterSpacing: 0.5 }}>{times.length} slip{times.length > 1 ? "s" : ""} this day</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 4 }}>
+          {times.map((t, i) => (
+            <div key={i} style={{ background: `${color}25`, border: `1px solid ${color}66`, borderRadius: 6, padding: "3px 10px", fontSize: 10, color, fontFamily: "'Georgia',serif" }}>{t}</div>
+          ))}
+        </div>
+      </div>
+    ));
+  })()}
+
+  {addictions.length === 0 && (day.toxins || []).filter(t => t.includes("||")).length === 0 && !showAdd && (
+    <div style={{ fontSize: 10, color: T.sub, letterSpacing: 1, textAlign: "center", padding: "8px 0" }}>
+      Track what you're letting go of
+    </div>
+  )}
+
+  {addictions.map(a => {
+    const todayStr = dateKey(new Date());
+    const slippedToday = a.lastSlip === todayStr;
+    const todaySlips = (day.toxins || []).filter(t => t.startsWith(a.id + "||")).map(t => { const p = t.split("||"); return p.length >= 3 ? p[2] : p[1]; });
+    return (
+      <div key={a.id} style={{ marginBottom: 8, background: slippedToday ? `${color}10` : T.isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.02)", border: `1px solid ${slippedToday ? `${color}33` : T.tileBorder}`, borderRadius: 10, padding: "10px 12px", transition: "all 0.3s" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: todaySlips.length > 0 ? 8 : 0 }}>
+          <div style={{ textAlign: "center", minWidth: 36 }}>
+            <div style={{ fontSize: 20, fontWeight: "bold", color: slippedToday ? color : (a.streak >= 7 ? T.CAT.self.color : T.CAT.fitness.color), lineHeight: 1 }}>{a.streak}</div>
+            <div style={{ fontSize: 7, color: T.sub, letterSpacing: 1, marginTop: 2 }}>DAYS</div>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12, fontWeight: "bold", color: T.text, letterSpacing: 0.5 }}>{a.name}</div>
+            <div style={{ fontSize: 9, color: slippedToday ? color : `${T.CAT.self.color}99`, marginTop: 2, letterSpacing: 0.5 }}>
+              {todaySlips.length > 0 ? `${todaySlips.length} slip${todaySlips.length > 1 ? "s" : ""} today` : "clean today ✦"}
+            </div>
+          </div>
+          <button onClick={() => logSlip(a.id)} style={{ background: `${color}15`, border: `1px solid ${color}33`, borderRadius: 7, color, cursor: "pointer", fontSize: 9, padding: "5px 10px", fontFamily: "'Georgia',serif", letterSpacing: 1, flexShrink: 0 }}>+ slip</button>
+          <div onClick={() => { setConfirmId(a.id); setRenaming(false); setRenameVal(a.name); }} style={{ fontSize: 16, color: T.sub, cursor: "pointer", opacity: 0.3, padding: "0 2px", lineHeight: 1, flexShrink: 0 }}>×</div>
+        </div>
+        {todaySlips.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {todaySlips.map((s, i) => (
+              <div key={i} style={{ background: `${color}18`, border: `1px solid ${color}44`, borderRadius: 5, padding: "2px 8px", fontSize: 9, color }}>{s}</div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  })}
+
+  {showAdd && (
+    <div style={{ background: T.isDark ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.03)", border: `1px solid ${color}33`, borderRadius: 10, padding: "12px", marginTop: 4 }}>
+      <div style={{ fontSize: 9, color: T.sub, letterSpacing: 1, marginBottom: 8 }}>Name it anything — only you know what it means</div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <input autoFocus placeholder="e.g. The Thing, Snake, Blue..." value={newName}
+          onChange={e => { if (e.target.value.length <= 20) setNewName(e.target.value); }}
+          onKeyDown={e => e.key === "Enter" && submit()} maxLength={20} style={{ ...inp(color, T), flex: 1 }} />
+        <button onClick={submit} style={{ background: `${color}22`, border: `1px solid ${color}44`, borderRadius: 8, color, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 14, padding: "0 14px" }}>+</button>
+      </div>
+    </div>
+  )}
+
+  {/* Delete confirmation modal */}
+  {confirmId && confirmAddiction && (
+    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => { setConfirmId(null); setRenaming(false); }}>
+      <div style={{ background: T.isDark ? "#111" : "#fdfaf5", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 480, padding: "24px 20px 40px", border: `1px solid ${color}33` }} onClick={e => e.stopPropagation()}>
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: T.isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)", margin: "0 auto 20px" }} />
+        {!renaming ? (
+          <>
+            <div style={{ fontSize: 16, fontWeight: "bold", color: T.text, marginBottom: 8, letterSpacing: 0.5 }}>
+              {confirmAddiction.streak === 0 ? "Walk away from this?" : confirmAddiction.streak < 7 ? "You're just getting started." : confirmAddiction.streak < 30 ? "Don't quit on a good streak." : "This took real discipline."}
+            </div>
+            <div style={{ fontSize: 12, color: T.sub, lineHeight: 1.8, marginBottom: 20 }}>
+              {confirmAddiction.streak === 0 ? (
+                <>You haven't built a streak yet with <span style={{ color: T.text, fontWeight: "bold" }}>"{confirmAddiction.name}"</span>. That's okay — but don't delete it just to avoid seeing it.</>
+              ) : confirmAddiction.streak < 7 ? (
+                <><span style={{ color, fontWeight: "bold" }}>{confirmAddiction.streak} days</span> clean from <span style={{ color: T.text, fontWeight: "bold" }}>"{confirmAddiction.name}"</span>. The first week is the hardest. You're in it right now — don't bail.</>
+              ) : confirmAddiction.streak < 30 ? (
+                <>You've stayed clean from <span style={{ color: T.text, fontWeight: "bold" }}>"{confirmAddiction.name}"</span> for <span style={{ color, fontWeight: "bold" }}>{confirmAddiction.streak} days</span>. That streak is yours.</>
+              ) : (
+                <><span style={{ color, fontWeight: "bold" }}>{confirmAddiction.streak} days</span> away from <span style={{ color: T.text, fontWeight: "bold" }}>"{confirmAddiction.name}"</span>. That's real.</>
+              )}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button onClick={() => { removeAddiction(confirmId); setConfirmId(null); }} style={{ width: "100%", background: `${color}18`, border: `1px solid ${color}44`, borderRadius: 10, color, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 12, padding: "12px", letterSpacing: 1 }}>I've moved on. Remove it.</button>
+              <button onClick={() => setRenaming(true)} style={{ width: "100%", background: T.isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)", border: `1px solid ${T.isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)"}`, borderRadius: 10, color: T.text, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 12, padding: "12px", letterSpacing: 1 }}>Rename it instead</button>
+              <button onClick={() => setConfirmId(null)} style={{ width: "100%", background: "transparent", border: "none", color: T.sub, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 11, padding: "8px", letterSpacing: 1 }}>
+                {confirmAddiction.streak > 0 ? "Keep the streak going" : "Not yet"}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 14, fontWeight: "bold", color: T.text, marginBottom: 6, letterSpacing: 0.5 }}>Rename it</div>
+            <div style={{ fontSize: 11, color: T.sub, marginBottom: 14 }}>Only you know what it means.</div>
+            <input autoFocus value={renameVal} onChange={e => { if (e.target.value.length <= 20) setRenameVal(e.target.value); }}
+              onKeyDown={e => e.key === "Enter" && handleRename()} maxLength={20} style={{ ...inp(color, T), marginBottom: 10 }} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={handleRename} style={{ flex: 1, background: `${color}22`, border: `1px solid ${color}44`, borderRadius: 10, color, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 12, padding: "11px", letterSpacing: 1 }}>Save</button>
+              <button onClick={() => setRenaming(false)} style={{ flex: 1, background: "transparent", border: `1px solid ${T.border}`, borderRadius: 10, color: T.sub, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 12, padding: "11px" }}>Back</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )}
+</div>
+```
+
+);
+}
+
+// ── YEAR VIEW ─────────────────────────────────────────────────────────────────
+function YearView({ yearData, addictions, everyTasks, onOpenDay, onOpenMonth, T, practice, viewYear, setViewYear, recurringReminders = [] }) {
+const todayKey = dateKey(today);
+const allPast = Object.entries(yearData).filter(([k]) => k <= todayKey).map(([, d]) => d).filter(Boolean);
+const avgScore = allPast.length ? Math.round(allPast.reduce((a, d) => a + getDayScore(d, practice, everyTasks), 0) / allPast.length) : 0;
+const perfect = allPast.filter(d => getDayScore(d, practice, everyTasks) === 100 && (d.toxins || []).filter(t => t.includes(”||”)).length === 0).length;
+
+const activeIds = addictions.map(a => a.id);
+const slipCounts = {};
+addictions.forEach(a => { slipCounts[a.id] = { id: a.id, name: a.name, count: 0 }; });
+allPast.forEach(d => {
+(d.toxins || []).filter(t => t.includes(”||”)).forEach(t => {
+const parts = t.split(”||”);
+const id = parts[0];
+const nameFromSlip = parts.length >= 3 ? parts[1] : null;
+if (slipCounts[id]) slipCounts[id].count++;
+else { slipCounts[id] = { id, name: nameFromSlip || “Unknown”, count: 1 }; }
+});
+});
+const slipEntries = Object.values(slipCounts).filter(s => s.count > 0);
+const { CAT } = T;
+
+const lastTapRef = useRef(0);
+const renames = {};
+
+const totalSlips = slipEntries.reduce((a, s) => a + s.count, 0);
+const [showSlipDetail, setShowSlipDetail] = useState(false);
+
+function handleSlipTap() {
+const now = Date.now();
+if (now - lastTapRef.current < 350) { setShowSlipDetail(true); }
+lastTapRef.current = now;
+}
+
+return (
+<div style={{ padding: “16px 12px 80px” }}>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 16 }}>
+<button onClick={() => setViewYear(y => y - 1)} style={{ background: “none”, border: `1px solid ${T.border}`, borderRadius: 8, color: T.sub, cursor: “pointer”, fontSize: 18, width: 36, height: 36, display: “flex”, alignItems: “center”, justifyContent: “center” }}>‹</button>
+<span style={{ fontSize: 13, letterSpacing: 4, color: T.text }}>{viewYear}</span>
+<button onClick={() => setViewYear(y => Math.min(CURRENT_YEAR + 5, y + 1))} style={{ background: “none”, border: `1px solid ${T.border}`, borderRadius: 8, color: viewYear >= CURRENT_YEAR + 5 ? `${T.sub}33` : T.sub, cursor: viewYear >= CURRENT_YEAR + 5 ? “default” : “pointer”, fontSize: 18, width: 36, height: 36, display: “flex”, alignItems: “center”, justifyContent: “center” }} disabled={viewYear >= CURRENT_YEAR + 5}>›</button>
+</div>
+
+```
+  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 20 }}>
+    <Stat label="Avg Score" value={`${avgScore}%`} color={CAT.fitness.color} T={T} />
+    <Stat label="Perfect"   value={perfect}        color={CAT.self.color}    T={T} />
+    <div onClick={handleSlipTap} style={{ cursor: "pointer" }}>
+      <Stat label={`Slips${totalSlips > 0 ? " ·· tap" : ""}`} value={totalSlips} color={CAT.toxins.color} T={T} hint={totalSlips > 0 ? "double-tap for report" : null} />
+    </div>
+  </div>
+
+  {showSlipDetail && (
+    <div style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "flex-end", justifyContent: "center" }} onClick={() => setShowSlipDetail(false)}>
+      <div style={{ background: T.isDark ? "#111" : "#fdfaf5", borderRadius: "20px 20px 0 0", width: "100%", maxWidth: 480, maxHeight: "80vh", overflowY: "auto", padding: "20px 18px 44px", border: `1px solid ${CAT.toxins.color}33` }} onClick={e => e.stopPropagation()}>
+        <div style={{ width: 36, height: 4, borderRadius: 2, background: T.isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)", margin: "0 auto 20px" }} />
+        <div style={{ fontSize: 14, fontWeight: "bold", letterSpacing: 3, color: T.text, marginBottom: 4 }}>SLIP REPORT · {viewYear}</div>
+        <div style={{ fontSize: 10, color: T.sub, marginBottom: 20, letterSpacing: 1 }}>{totalSlips} total slip{totalSlips !== 1 ? "s" : ""} across {slipEntries.length} thing{slipEntries.length !== 1 ? "s" : ""}</div>
+
+        {slipEntries.length === 0 ? (
+          <div style={{ textAlign: "center", color: T.sub, fontSize: 12, padding: "30px 0" }}>No slips recorded this year ✦</div>
+        ) : (
+          slipEntries.map((s, i) => {
+            const isDeleted = !activeIds.includes(s.id);
+            const displayName = renames[s.id] || s.name;
+            const pct = totalSlips ? Math.round(s.count / totalSlips * 100) : 0;
+            return (
+              <div key={i} style={{ marginBottom: 16, paddingBottom: 16, borderBottom: i < slipEntries.length - 1 ? `1px solid ${T.border}` : "none" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: "bold", color: T.text }}>{displayName}</span>
+                    {isDeleted && <span style={{ fontSize: 8, color: T.sub, letterSpacing: 1, border: `1px solid ${T.border}`, borderRadius: 4, padding: "1px 5px" }}>deleted</span>}
+                  </div>
+                  <span style={{ fontSize: 18, fontWeight: "bold", color: CAT.toxins.color }}>{s.count}</span>
+                </div>
+                <div style={{ height: 6, background: T.isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)", borderRadius: 3, overflow: "hidden" }}>
+                  <div style={{ width: `${pct}%`, height: "100%", background: CAT.toxins.color, borderRadius: 3, transition: "width 0.5s" }} />
+                </div>
+                <div style={{ fontSize: 9, color: T.sub, marginTop: 4, letterSpacing: 1 }}>{pct}% of total slips</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 4, marginTop: 10 }}>
+                  {MONTH_NAMES.slice(0, 12).map((mn, mi) => {
+                    const mCount = allPast.filter(d => {
+                      const dd = new Date(d.date);
+                      return dd.getMonth() === mi && (d.toxins || []).some(t => t.startsWith(s.id + "||"));
+                    }).length;
+                    return (
+                      <div key={mi} style={{ textAlign: "center", background: mCount > 0 ? `${CAT.toxins.color}18` : "transparent", borderRadius: 6, padding: "4px 2px", border: `1px solid ${mCount > 0 ? CAT.toxins.color + "33" : T.border}` }}>
+                        <div style={{ fontSize: 7, color: T.sub, letterSpacing: 1 }}>{mn.slice(0, 3).toUpperCase()}</div>
+                        <div style={{ fontSize: 11, fontWeight: "bold", color: mCount > 0 ? CAT.toxins.color : T.sub }}>{mCount || "-"}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })
+        )}
+        <button onClick={() => setShowSlipDetail(false)} style={{ width: "100%", background: "transparent", border: `1px solid ${T.border}`, borderRadius: 10, color: T.sub, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 11, padding: "10px", marginTop: 8, letterSpacing: 1 }}>Close</button>
+      </div>
+    </div>
+  )}
+
+  <div style={{ fontSize: 8, color: T.sub, letterSpacing: 3, textAlign: "center", marginBottom: 14 }}>TAP MONTH TO EXPAND · TAP DAY TO OPEN</div>
+  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+    {Array.from({ length: 12 }, (_, m) => {
+      const dim = new Date(viewYear, m + 1, 0).getDate(), fst = new Date(viewYear, m, 1).getDay();
+      const fut = viewYear === CURRENT_YEAR ? m > today.getMonth() : false;
+      return (
+        <div key={m}>
+          <div onClick={() => onOpenMonth(m)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, cursor: "pointer" }}>
+            <span style={{ fontSize: 10, letterSpacing: 3, color: fut ? T.sub : T.text }}>{MONTH_NAMES[m].toUpperCase()}</span>
+            {!fut && <span style={{ fontSize: 8, color: T.sub }}>→</span>}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 2 }}>
+            {Array.from({ length: fst }).map((_, i) => <div key={`e${i}`} />)}
+            {Array.from({ length: dim }, (_, i) => {
+              const key = dateKey(new Date(viewYear, m, i + 1));
+              const isFut = viewYear > CURRENT_YEAR ? false : key > todayKey;
+              const isToday = key === todayKey;
+              const bg = getDayBg(yearData[key], isFut, T.isDark, practice);
+              const d = yearData[key];
+              const hasNote = d?.note?.trim();
+              const hasRem = (d?.plans || []).length > 0;
+              const dow = new Date(key).getDay();
+              const hasRec = recurringReminders.some(r => r.freq === "daily" || (r.freq === "weekly" && (r.days || []).includes(dow)));
+              return (
+                <div key={key} onClick={() => onOpenDay(key)} style={{ background: bg, border: isToday ? (T.isDark ? "1.5px solid rgba(255,255,255,0.8)" : "1.5px solid rgba(0,0,0,0.6)") : (T.isDark ? "1px solid rgba(255,255,255,0.04)" : "1px solid rgba(0,0,0,0.06)"), borderRadius: 3, height: 18, cursor: "pointer", opacity: isFut ? 0.4 : 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1 }}>
+                  <span style={{ fontSize: 6, color: T.isDark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.5)" }}>{i + 1}</span>
+                  {(hasNote || hasRem || hasRec) && (
+                    <div style={{ display: "flex", gap: 1 }}>
+                      {hasNote && <div style={{ width: 2, height: 2, borderRadius: "50%", background: "rgba(255,255,255,0.4)" }} />}
+                      {hasRem && <div style={{ width: 2, height: 2, borderRadius: "50%", background: "rgba(255,200,50,0.7)" }} />}
+                      {hasRec && <div style={{ width: 2, height: 2, borderRadius: "50%", background: "rgba(100,180,255,0.6)" }} />}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</div>
+```
+
+);
+}
+
+// ── MONTH VIEW ────────────────────────────────────────────────────────────────
+function MonthView({ yearData, month, setMonth, onOpenDay, T, practice, everyTasks, viewYear, setViewYear, recurringReminders = [] }) {
+const todayKey = dateKey(today);
+const dim = new Date(viewYear, month + 1, 0).getDate(), fst = new Date(viewYear, month, 1).getDay();
+const monthDays = Array.from({ length: dim }, (_, i) => ({ key: dateKey(new Date(viewYear, month, i + 1)), day: yearData[dateKey(new Date(viewYear, month, i + 1))], num: i + 1 }));
+const past = monthDays.filter(({ key }) => key <= todayKey).map(({ day }) => day).filter(Boolean);
+const avg = past.length ? Math.round(past.reduce((a, d) => a + getDayScore(d, practice, everyTasks), 0) / past.length) : 0;
+const perf = past.filter(d => getDayScore(d, practice, everyTasks) === 100 && (d.toxins || []).filter(t => t.includes(”||”)).length === 0).length;
+const tox = past.reduce((a, d) => a + (d.toxins || []).filter(t => t.includes(”||”)).length, 0);
+const { CAT } = T;
+const arrowS = { background: “transparent”, border: `1px solid ${T.isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.12)"}`, borderRadius: 8, color: T.sub, cursor: “pointer”, fontFamily: “‘Georgia’,serif”, fontSize: 20, padding: “2px 14px” };
+
+return (
+<div style={{ padding: “14px 12px 80px” }}>
+<div style={{ display: “flex”, justifyContent: “space-between”, alignItems: “center”, marginBottom: 16 }}>
+<button onClick={() => { if (month === 0) { setMonth(11); setViewYear(y => y - 1); } else setMonth(m => m - 1); }} style={arrowS}>‹</button>
+<span style={{ fontSize: 13, letterSpacing: 4 }}>{MONTH_NAMES[month].toUpperCase()} {viewYear}</span>
+<button onClick={() => { if (month === 11) { setMonth(0); setViewYear(y => Math.min(CURRENT_YEAR + 5, y + 1)); } else setMonth(m => m + 1); }} style={arrowS}>›</button>
+</div>
+<div style={{ display: “grid”, gridTemplateColumns: “repeat(7,1fr)”, gap: 3, marginBottom: 6 }}>
+{DAY_SHORT.map(d => <div key={d} style={{ textAlign: “center”, fontSize: 8, color: T.sub, letterSpacing: 1 }}>{d}</div>)}
+</div>
+<div style={{ display: “grid”, gridTemplateColumns: “repeat(7,1fr)”, gap: 3 }}>
+{Array.from({ length: fst }).map((_, i) => <div key={`e${i}`} />)}
+{monthDays.map(({ key, day, num }) => {
+const isFut = key > todayKey && viewYear === CURRENT_YEAR, isToday = key === todayKey;
+const bg = getDayBg(day, isFut, T.isDark, practice);
+const sc = getDayScore(day, practice, everyTasks);
+const hasNote = day?.note?.trim();
+const hasPlan = (day?.plans || []).length > 0;
+const dayOfWeek = new Date(key).getDay();
+const hasRecurringPlan = recurringReminders.some(r => r.freq === “daily” || (r.freq === “weekly” && (r.days || []).includes(dayOfWeek)));
+return (
+<div key={key} onClick={() => onOpenDay(key)} style={{ background: bg, border: isToday ? (T.isDark ? “2px solid rgba(255,255,255,0.9)” : “2px solid rgba(0,0,0,0.65)”) : (T.isDark ? “1px solid rgba(255,255,255,0.05)” : “1px solid rgba(0,0,0,0.07)”), borderRadius: 8, padding: “7px 3px”, cursor: “pointer”, textAlign: “center”, opacity: isFut ? 0.4 : 1 }}>
+<div style={{ fontSize: 11, fontWeight: “bold” }}>{num}</div>
+{!isFut && sc > 0 && <div style={{ fontSize: 7, color: T.sub, marginTop: 1 }}>{sc}%</div>}
+{day && (day.toxins || []).filter(t => t.includes(”||”)).length > 0 && <div style={{ fontSize: 7, color: CAT.toxins.color }}>·{(day.toxins || []).filter(t => t.includes(”||”)).length}</div>}
+{(hasNote || hasPlan || hasRecurringPlan) && (
+<div style={{ display: “flex”, justifyContent: “center”, gap: 2, marginTop: 2 }}>
+{hasNote && <div style={{ width: 3, height: 3, borderRadius: “50%”, background: “rgba(255,255,255,0.4)” }} />}
+{hasPlan && <div style={{ width: 3, height: 3, borderRadius: “50%”, background: “rgba(255,200,50,0.7)” }} />}
+{hasRecurringPlan && <div style={{ width: 3, height: 3, borderRadius: “50%”, background: “rgba(100,180,255,0.6)” }} />}
+</div>
+)}
+</div>
+);
+})}
+</div>
+<div style={{ display: “grid”, gridTemplateColumns: “1fr 1fr 1fr”, gap: 8, marginTop: 20 }}>
+<Stat label=“Avg” value={`${avg}%`} color={CAT.fitness.color} T={T} />
+<Stat label="Perfect" value={perf} color={CAT.self.color} T={T} />
+<Stat label="Slips" value={tox} color={CAT.toxins.color} T={T} />
+</div>
+
+```
+  {/* Faith Track */}
+  <div style={{ marginTop: 16, background: T.statBg, borderRadius: 12, padding: 14 }}>
+    <div style={{ fontSize: 8, letterSpacing: 3, color: T.sub, marginBottom: 10 }}>{practice.icon} {practice.label.toUpperCase()} TRACK</div>
+    {(practice.items || []).map((p, idx) => {
+      const cnt = past.filter(d => (d.faithItems || []).find(f => f.label === p && f.done)).length;
+      const pct = past.length ? cnt / past.length : 0;
+      return (
+        <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+          <span style={{ fontSize: 9, color: T.sub, width: 80, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p}</span>
+          <div style={{ flex: 1, height: 4, background: T.isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)", borderRadius: 2, overflow: "hidden" }}>
+            <div style={{ width: `${pct * 100}%`, height: "100%", background: pct >= 0.8 ? T.CAT.faith.color : T.CAT.toxins.color, borderRadius: 2, transition: "width 0.5s" }} />
+          </div>
+          <span style={{ fontSize: 9, color: T.sub, width: 28, textAlign: "right" }}>{cnt}/{past.length}</span>
+        </div>
+      );
+    })}
+  </div>
+
+  {/* Fitness Track */}
+  {(() => {
+    const workoutMap = {};
+    const mealDone = past.reduce((a, d) => a + (d.meals || []).filter(m => m.done).length, 0);
+    const mealTotal = past.reduce((a, d) => a + (d.meals || []).length, 0);
+    past.forEach(d => {
+      (d.workoutSessions || []).forEach(s => {
+        const label = s.typeId === "custom" && s.customName ? s.customName : (WORKOUT_PRESETS.find(p => p.id === s.typeId) || WORKOUT_PRESETS[0]).label;
+        if (!workoutMap[label]) workoutMap[label] = { done: 0, total: 0 };
+        workoutMap[label].total++;
+        if (s.done) workoutMap[label].done++;
+      });
+    });
+    const entries = Object.entries(workoutMap);
+    if (entries.length === 0 && mealTotal === 0) return null;
+    const color = CAT.fitness.color;
+    return (
+      <div style={{ marginTop: 10, background: T.statBg, borderRadius: 12, padding: 14 }}>
+        <div style={{ fontSize: 8, letterSpacing: 3, color: T.sub, marginBottom: 10 }}>💪 FITNESS TRACK</div>
+        {entries.map(([label, { done, total }], i) => {
+          const pct = total ? done / total : 0;
+          return (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+              <span style={{ fontSize: 9, color: T.sub, width: 80, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+              <div style={{ flex: 1, height: 4, background: T.isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)", borderRadius: 2, overflow: "hidden" }}>
+                <div style={{ width: `${pct * 100}%`, height: "100%", background: pct >= 0.8 ? color : CAT.toxins.color, borderRadius: 2, transition: "width 0.5s" }} />
+              </div>
+              <span style={{ fontSize: 9, color: T.sub, width: 28, textAlign: "right" }}>{done}/{total}</span>
+            </div>
+          );
+        })}
+        {mealTotal > 0 && (() => {
+          const pct = mealTotal ? mealDone / mealTotal : 0;
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+              <span style={{ fontSize: 9, color: T.sub, width: 80 }}>Meals</span>
+              <div style={{ flex: 1, height: 4, background: T.isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)", borderRadius: 2, overflow: "hidden" }}>
+                <div style={{ width: `${pct * 100}%`, height: "100%", background: pct >= 0.8 ? color : CAT.toxins.color, borderRadius: 2, transition: "width 0.5s" }} />
+              </div>
+              <span style={{ fontSize: 9, color: T.sub, width: 28, textAlign: "right" }}>{mealDone}/{mealTotal}</span>
+            </div>
+          );
+        })()}
+      </div>
+    );
+  })()}
+
+  {/* Work Track */}
+  {(() => {
+    const everyMap = {};
+    let dailyDone = 0, dailyTotal = 0;
+    past.forEach(d => {
+      (everyTasks || []).forEach(t => {
+        if (!everyMap[t.label]) everyMap[t.label] = { done: 0, total: 0 };
+        everyMap[t.label].total++;
+        if ((d.everyDone || []).includes(t.id)) everyMap[t.label].done++;
+      });
+      const dt = d.todayTasks || [];
+      dailyTotal += dt.length;
+      dailyDone  += dt.filter(t => t.done).length;
+    });
+    const everyEntries = Object.entries(everyMap);
+    if (everyEntries.length === 0 && dailyTotal === 0) return null;
+    const color = CAT.work.color;
+    const TrackRow = ({ label, done, total }) => {
+      const pct = total ? done / total : 0;
+      return (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+          <span style={{ fontSize: 9, color: T.sub, width: 80, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+          <div style={{ flex: 1, height: 4, background: T.isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.08)", borderRadius: 2, overflow: "hidden" }}>
+            <div style={{ width: `${pct * 100}%`, height: "100%", background: pct >= 0.8 ? color : CAT.toxins.color, borderRadius: 2, transition: "width 0.5s" }} />
+          </div>
+          <span style={{ fontSize: 9, color: T.sub, width: 28, textAlign: "right" }}>{done}/{total}</span>
+        </div>
+      );
+    };
+    return (
+      <div style={{ marginTop: 10, background: T.statBg, borderRadius: 12, padding: 14 }}>
+        <div style={{ fontSize: 8, letterSpacing: 3, color: T.sub, marginBottom: 10 }}>💼 WORK TRACK</div>
+        {everyEntries.length > 0 && <div style={{ fontSize: 7, letterSpacing: 2, color: `${color}66`, marginBottom: 6 }}>EVERYDAY</div>}
+        {everyEntries.map(([label, { done, total }], i) => <TrackRow key={i} label={label} done={done} total={total} />)}
+        {dailyTotal > 0 && <div style={{ fontSize: 7, letterSpacing: 2, color: `${color}44`, marginTop: everyEntries.length > 0 ? 8 : 0, marginBottom: 6 }}>DAILY</div>}
+        {dailyTotal > 0 && <TrackRow label="Tasks" done={dailyDone} total={dailyTotal} />}
+      </div>
+    );
+  })()}
+</div>
+```
+
+);
+}
+
+function Stat({ label, value, color, T, hint }) {
+const valStr = String(value);
+const fontSize = valStr.length > 5 ? 13 : valStr.length > 3 ? 16 : 20;
+return (
+<div style={{ background: `${color}${T.isDark ? "11" : "18"}`, border: `1px solid ${color}${T.isDark ? "33" : "44"}`, borderRadius: 10, padding: “10px 6px”, textAlign: “center”, minWidth: 0 }}>
+<div style={{ fontSize, fontWeight: “bold”, color: T.isDark ? “#fff” : “#111”, lineHeight: 1.2, wordBreak: “break-all” }}>{value}</div>
+<div style={{ fontSize: 7, color: T.sub, marginTop: 3, letterSpacing: 1, whiteSpace: “nowrap”, overflow: “hidden”, textOverflow: “ellipsis” }}>{label}</div>
+{hint && <div style={{ fontSize: 6, color: `${color}88`, marginTop: 2, letterSpacing: 0.3 }}>{hint}</div>}
+</div>
+);
+}
