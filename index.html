@@ -11,7 +11,16 @@
     *{box-sizing:border-box}
     body{margin:0;padding:0;background:#000}
     input,textarea,select{font-size:16px!important}
-  </style>
+
+```
+/* iOS standalone keyboard fix */
+input, textarea { 
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+```
+
+</style>
 </head>
 <body>
   <div id="root"></div>
@@ -1276,5 +1285,18 @@ function Stat({ label, value, color, T, hint }) {
 ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(Root));
 
   </script>
+
+  <script>
+    // iOS standalone mode keyboard fix
+    if (window.navigator.standalone) {
+      document.addEventListener('touchend', function(e) {
+        var el = e.target;
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+          setTimeout(function() { el.focus(); }, 50);
+        }
+      }, false);
+    }
+  </script>
+
 </body>
 </html>
