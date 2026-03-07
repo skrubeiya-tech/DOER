@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <title>DOER</title>
-  <style>*{box-sizing:border-box}body{margin:0;padding:0;background:#000}input,textarea,select{font-size:16px!important;-webkit-user-select:text!important;user-select:text!important}</style>
+  <style>*{box-sizing:border-box}body{margin:0;padding:0;background:#000}input,textarea,select{font-size:16px!important;-webkit-user-select:text!important;user-select:text!important}input::placeholder,textarea::placeholder{opacity:0.3!important;color:inherit}</style>
 </head>
 <body>
   <div id="root"></div>
@@ -36,26 +36,29 @@ function getTouchedKeys() {
     return [];
   }
 }
-function countStreak(allYearsData, checkFn, isBrokenFn) {
-  const today2 = /* @__PURE__ */ new Date();
-  today2.setHours(0, 0, 0, 0);
+function countStreak(allYearsData, checkFn, isBrokenFn, asOfDate) {
+  const ref = asOfDate ? new Date(asOfDate) : /* @__PURE__ */ new Date();
+  ref.setHours(0, 0, 0, 0);
   const touched = getTouchedKeys();
-  const todayKey2 = dayKey(today2);
-  const todayData = (allYearsData[today2.getFullYear()] || {})[todayKey2];
-  if (isBrokenFn && todayData && isBrokenFn(todayData)) return 0;
+  const refKey = dayKey(ref);
+  const refData = (allYearsData[ref.getFullYear()] || {})[refKey];
+  if (isBrokenFn && refData && isBrokenFn(refData)) return 0;
   let past = 0;
   for (let i = 1; i <= 365; i++) {
-    const d = new Date(today2);
+    const d = new Date(ref);
     d.setDate(d.getDate() - i);
     const key = dayKey(d);
     if (!touched.includes(key)) break;
     const day = (allYearsData[d.getFullYear()] || {})[key];
-    if (!day || !checkFn(day)) break;
+    if (!day) break;
+    const result = checkFn(day);
+    if (result === null) continue;
+    if (!result) break;
     past++;
   }
   return past + 1;
 }
-function calcOverallStreak(allYearsData, practice, everyTasks, addictions) {
+function calcOverallStreak(allYearsData, practice, everyTasks, addictions, asOfDate) {
   return countStreak(
     allYearsData,
     (day) => {
@@ -64,28 +67,30 @@ function calcOverallStreak(allYearsData, practice, everyTasks, addictions) {
       const disciplineOk = !addictions || addictions.length === 0 || slips === 0;
       return score === 100 && disciplineOk;
     },
-    null
+    null,
+    asOfDate
   );
 }
-function calcFitnessStreak(allYearsData) {
+function calcFitnessStreak(allYearsData, asOfDate) {
   return countStreak(
     allYearsData,
     (day) => (day.workoutSessions || []).some((s) => s.done),
-    null
+    null,
+    asOfDate
     // never broken from outside — only past days that fail stop the streak
   );
 }
-function calcMealStreak(allYearsData) {
-  const today2 = /* @__PURE__ */ new Date();
-  today2.setHours(0, 0, 0, 0);
-  const todayKey2 = dayKey(today2);
-  const todayData = (allYearsData[today2.getFullYear()] || {})[todayKey2];
-  const todayLogged = (todayData?.meals || []).filter((m) => m.content && m.content.trim());
-  if (todayLogged.length > 0 && !todayLogged.every((m) => m.done)) return 0;
+function calcMealStreak(allYearsData, asOfDate) {
+  const ref = asOfDate ? new Date(asOfDate) : /* @__PURE__ */ new Date();
+  ref.setHours(0, 0, 0, 0);
+  const refKey = dayKey(ref);
+  const refData = (allYearsData[ref.getFullYear()] || {})[refKey];
+  const refLogged = (refData?.meals || []).filter((m) => m.content && m.content.trim());
+  if (refLogged.length > 0 && !refLogged.every((m) => m.done)) return 0;
   const touched = getTouchedKeys();
   let past = 0;
   for (let i = 1; i <= 365; i++) {
-    const d = new Date(today2);
+    const d = new Date(ref);
     d.setDate(d.getDate() - i);
     const key = dayKey(d);
     if (!touched.includes(key)) break;
@@ -98,44 +103,58 @@ function calcMealStreak(allYearsData) {
   }
   return past + 1;
 }
-function calcFaithStreak(allYearsData, practice) {
+function calcFaithStreak(allYearsData, practice, asOfDate) {
   return countStreak(
     allYearsData,
     (day) => {
+      const dk = dayKey(new Date(day.date));
+      const freeze = getFreezeForDay(dk);
       const items = day.faithItems || [];
       if (items.length === 0) return false;
-      const activeItems = items;
-      if (activeItems.length === 0) return true;
+      const activeItems = freeze ? items.slice(0, freeze.fromIndex) : items;
+      if (activeItems.length === 0) return null;
       return activeItems.every((f) => f.done);
     },
-    null
+    null,
+    asOfDate
   );
 }
-function calcWorkStreak(allYearsData, everyTasks) {
+function calcWorkStreak(allYearsData, everyTasks, asOfDate) {
   if (everyTasks.length === 0) return 1;
   return countStreak(
     allYearsData,
     (day) => everyTasks.every((t) => (day.everyDone || []).includes(t.id)),
-    null
+    null,
+    asOfDate
   );
 }
-function calcSelfStreak(allYearsData, selfHabitIds) {
+function calcSelfStreak(allYearsData, selfHabitIds, asOfDate) {
   return countStreak(
     allYearsData,
     (day) => {
       const items = day.selfItems || [];
       return items.length > 0 && items.every((s) => s.done);
     },
-    null
+    null,
+    asOfDate
   );
 }
-function calcDisciplineStreak(allYearsData, addictions) {
-  if (!addictions || addictions.length === 0) return 0;
-  return countStreak(
-    allYearsData,
-    (day) => (day.toxins || []).filter((t) => t.includes("||")).length === 0,
-    (day) => (day.toxins || []).filter((t) => t.includes("||")).length > 0
-  );
+function calcDisciplineStreak(allYearsData, addictions, asOfDate) {
+  if (!addictions || addictions.length === 0) return 1;
+  const ref = asOfDate ? new Date(asOfDate) : /* @__PURE__ */ new Date();
+  ref.setHours(0, 0, 0, 0);
+  const refKey = dayKey(ref);
+  const refData = (allYearsData[ref.getFullYear()] || {})[refKey];
+  if (refData && (refData.toxins || []).filter((t) => t.includes("||")).length > 0) return 0;
+  let past = 0;
+  for (let i = 1; i <= 365; i++) {
+    const d = new Date(ref);
+    d.setDate(d.getDate() - i);
+    const dy = (allYearsData[d.getFullYear()] || {})[dayKey(d)];
+    if (dy && (dy.toxins || []).filter((t) => t.includes("||")).length > 0) break;
+    past++;
+  }
+  return past + 1;
 }
 const inp = (color, T) => ({ background: T.isDark ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.85)", border: `1px solid ${color}33`, borderRadius: 6, color: T.text, fontFamily: "'Georgia',serif", fontSize: 16, padding: "6px 8px", width: "100%", boxSizing: "border-box", outline: "none" });
 const ghost = (color, T) => ({ width: "100%", marginTop: 4, background: "transparent", border: `1px dashed ${color}${T.isDark ? "33" : "55"}`, borderRadius: 6, color: `${color}${T.isDark ? "66" : "99"}`, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 10, padding: "5px", letterSpacing: 1 });
@@ -694,13 +713,13 @@ function App({ initialData }) {
     });
     setShowPicker(false);
   }
-  const overallStreak = calcOverallStreak(allYearsData, practice, everyTasks, addictions);
-  const fitnessStreak = calcFitnessStreak(allYearsData);
-  const mealStreak = calcMealStreak(allYearsData);
-  const faithStreak = calcFaithStreak(allYearsData, practice);
-  const workStreak = calcWorkStreak(allYearsData, everyTasks);
-  const selfStreak = calcSelfStreak(allYearsData, selfHabitIds);
-  const disciplineStreak = calcDisciplineStreak(allYearsData, addictions);
+  const overallStreak = calcOverallStreak(allYearsData, practice, everyTasks, addictions, day.date);
+  const fitnessStreak = calcFitnessStreak(allYearsData, day.date);
+  const mealStreak = calcMealStreak(allYearsData, day.date);
+  const faithStreak = calcFaithStreak(allYearsData, practice, day.date);
+  const workStreak = calcWorkStreak(allYearsData, everyTasks, day.date);
+  const selfStreak = calcSelfStreak(allYearsData, selfHabitIds, day.date);
+  const disciplineStreak = calcDisciplineStreak(allYearsData, addictions, day.date);
   return /* @__PURE__ */ React.createElement("div", { style: { minHeight: "100vh", background: pageBg, transition: "background 1s ease", fontFamily: "'Georgia',serif", color: T.text } }, showIntro && /* @__PURE__ */ React.createElement(IntroScreen, { onDone: () => setShowIntro(false) }), /* @__PURE__ */ React.createElement("div", { style: { position: "sticky", top: 0, zIndex: 300, background: isDark ? "rgba(0,0,0,0.72)" : "rgba(255,252,246,0.88)", backdropFilter: "blur(16px)", borderBottom: `1px solid ${T.border}`, padding: "10px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 20, fontWeight: "bold", letterSpacing: 5 } }, "DOER ", /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, fontWeight: "normal", letterSpacing: 3, opacity: 0.5 } }, "CALENDAR")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 8, color: T.sub, letterSpacing: 2, marginTop: 1 } }, "a habit-aware calendar \xB7 ", viewYear, overallStreak > 0 && /* @__PURE__ */ React.createElement("span", { style: { color: `${T.CAT.self.color}88`, fontStyle: "italic", marginLeft: 6 } }, "\xB7 Day ", overallStreak))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 5, alignItems: "center" } }, [["day", "DAY"], ["month", "MTH"], ["year", "YR"]].map(([v, l]) => /* @__PURE__ */ React.createElement("button", { key: v, onClick: () => setView(v), style: { background: view === v ? isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.08)" : "transparent", border: `1px solid ${view === v ? isDark ? "rgba(255,255,255,0.25)" : "rgba(0,0,0,0.2)" : T.border}`, borderRadius: 6, color: view === v ? T.text : T.sub, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 9, letterSpacing: 2, padding: "5px 10px" } }, l)), (viewYear !== CURRENT_YEAR || view === "month" && viewMonth !== today.getMonth() || view === "day" && selectedKey !== dateKey(today)) && /* @__PURE__ */ React.createElement("button", { onClick: () => {
     setViewYear(CURRENT_YEAR);
     setViewMonth(today.getMonth());
@@ -1055,7 +1074,7 @@ function WorkPanel({ day, onOpenWork, everyTasks, togEveryTask, addTodayTask, to
       value: newTask,
       onChange: (e) => setNewTask(e.target.value),
       onKeyDown: (e) => e.key === "Enter" && submit(),
-      style: { flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 11, color: T.text, fontFamily: "'Georgia',serif", padding: "2px 0", caretColor: color }
+      style: { flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 11, color: T.sub, fontFamily: "'Georgia',serif", padding: "2px 0", caretColor: color }
     }
   ), newTask.trim() && /* @__PURE__ */ React.createElement("div", { onClick: submit, style: { fontSize: 13, color, cursor: "pointer", flexShrink: 0 } }, "+")));
 }
