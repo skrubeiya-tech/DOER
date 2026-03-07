@@ -36,10 +36,13 @@ function getTouchedKeys() {
     return [];
   }
 }
-function countStreak(allYearsData, checkFn) {
+function countStreak(allYearsData, checkFn, isBrokenFn) {
   const today2 = /* @__PURE__ */ new Date();
   today2.setHours(0, 0, 0, 0);
   const touched = getTouchedKeys();
+  const todayKey2 = dayKey(today2);
+  const todayData = (allYearsData[today2.getFullYear()] || {})[todayKey2];
+  if (isBrokenFn && todayData && isBrokenFn(todayData)) return 0;
   let past = 0;
   for (let i = 1; i <= 365; i++) {
     const d = new Date(today2);
@@ -53,47 +56,87 @@ function countStreak(allYearsData, checkFn) {
   return past + 1;
 }
 function calcOverallStreak(allYearsData, practice, everyTasks, addictions) {
-  return countStreak(allYearsData, (day) => {
-    const score = getDayScore(day, practice, everyTasks);
-    const slips = (day.toxins || []).filter((t) => t.includes("||")).length;
-    const disciplineOk = !addictions || addictions.length === 0 || slips === 0;
-    return score === 100 && disciplineOk;
-  });
+  return countStreak(
+    allYearsData,
+    (day) => {
+      const score = getDayScore(day, practice, everyTasks);
+      const slips = (day.toxins || []).filter((t) => t.includes("||")).length;
+      const disciplineOk = !addictions || addictions.length === 0 || slips === 0;
+      return score === 100 && disciplineOk;
+    },
+    null
+  );
 }
 function calcFitnessStreak(allYearsData) {
-  return countStreak(allYearsData, (day) => (day.workoutSessions || []).some((s) => s.done));
+  return countStreak(
+    allYearsData,
+    (day) => (day.workoutSessions || []).some((s) => s.done),
+    null
+    // never broken from outside — only past days that fail stop the streak
+  );
 }
 function calcMealStreak(allYearsData) {
-  return countStreak(allYearsData, (day) => {
-    const meals = day.meals || [];
-    const loggedMeals = meals.filter((m) => m.content && m.content.trim());
-    if (loggedMeals.length === 0) return true;
-    return loggedMeals.every((m) => m.done);
-  });
+  const today2 = /* @__PURE__ */ new Date();
+  today2.setHours(0, 0, 0, 0);
+  const todayKey2 = dayKey(today2);
+  const todayData = (allYearsData[today2.getFullYear()] || {})[todayKey2];
+  const todayLogged = (todayData?.meals || []).filter((m) => m.content && m.content.trim());
+  if (todayLogged.length > 0 && !todayLogged.every((m) => m.done)) return 0;
+  const touched = getTouchedKeys();
+  let past = 0;
+  for (let i = 1; i <= 365; i++) {
+    const d = new Date(today2);
+    d.setDate(d.getDate() - i);
+    const key = dayKey(d);
+    if (!touched.includes(key)) break;
+    const day = (allYearsData[d.getFullYear()] || {})[key];
+    if (!day) break;
+    const logged = (day.meals || []).filter((m) => m.content && m.content.trim());
+    if (logged.length === 0) continue;
+    if (!logged.every((m) => m.done)) break;
+    past++;
+  }
+  return past + 1;
 }
 function calcFaithStreak(allYearsData, practice) {
-  return countStreak(allYearsData, (day) => {
-    const freeze = getFreezeInfo();
-    const items = day.faithItems || [];
-    if (items.length === 0) return false;
-    const activeItems = freeze ? items.slice(0, freeze.fromIndex) : items;
-    if (activeItems.length === 0) return true;
-    return activeItems.every((f) => f.done);
-  });
+  return countStreak(
+    allYearsData,
+    (day) => {
+      const freeze = getFreezeInfo();
+      const items = day.faithItems || [];
+      if (items.length === 0) return false;
+      const activeItems = freeze ? items.slice(0, freeze.fromIndex) : items;
+      if (activeItems.length === 0) return true;
+      return activeItems.every((f) => f.done);
+    },
+    null
+  );
 }
 function calcWorkStreak(allYearsData, everyTasks) {
   if (everyTasks.length === 0) return 1;
-  return countStreak(allYearsData, (day) => everyTasks.every((t) => (day.everyDone || []).includes(t.id)));
+  return countStreak(
+    allYearsData,
+    (day) => everyTasks.every((t) => (day.everyDone || []).includes(t.id)),
+    null
+  );
 }
 function calcSelfStreak(allYearsData, selfHabitIds) {
-  return countStreak(allYearsData, (day) => {
-    const items = day.selfItems || [];
-    return items.length > 0 && items.every((s) => s.done);
-  });
+  return countStreak(
+    allYearsData,
+    (day) => {
+      const items = day.selfItems || [];
+      return items.length > 0 && items.every((s) => s.done);
+    },
+    null
+  );
 }
 function calcDisciplineStreak(allYearsData, addictions) {
   if (!addictions || addictions.length === 0) return 0;
-  return countStreak(allYearsData, (day) => (day.toxins || []).filter((t) => t.includes("||")).length === 0);
+  return countStreak(
+    allYearsData,
+    (day) => (day.toxins || []).filter((t) => t.includes("||")).length === 0,
+    (day) => (day.toxins || []).filter((t) => t.includes("||")).length > 0
+  );
 }
 const inp = (color, T) => ({ background: T.isDark ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.85)", border: `1px solid ${color}33`, borderRadius: 6, color: T.text, fontFamily: "'Georgia',serif", fontSize: 16, padding: "6px 8px", width: "100%", boxSizing: "border-box", outline: "none" });
 const ghost = (color, T) => ({ width: "100%", marginTop: 4, background: "transparent", border: `1px dashed ${color}${T.isDark ? "33" : "55"}`, borderRadius: 6, color: `${color}${T.isDark ? "66" : "99"}`, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 10, padding: "5px", letterSpacing: 1 });
@@ -668,10 +711,7 @@ function App({ initialData }) {
       localStorage.clear();
       window.location.reload();
     }
-  }, style: { background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, cursor: "pointer", fontSize: 9, color: "rgba(255,255,255,0.2)", padding: "4px 8px", letterSpacing: 1, fontFamily: "'Georgia',serif" } }, "reset"), /* @__PURE__ */ React.createElement("button", { onClick: () => {
-    const key = prompt("Enter Anthropic API key for \u{1F4F7} food recognition:", localStorage.getItem("doer_api_key") || "");
-    if (key !== null) localStorage.setItem("doer_api_key", key.trim());
-  }, style: { background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, cursor: "pointer", fontSize: 9, color: "rgba(255,255,255,0.2)", padding: "4px 8px", letterSpacing: 1, fontFamily: "'Georgia',serif" } }, "\u2699")), /* @__PURE__ */ React.createElement("div", { style: { position: "relative", width: 42, height: 42 } }, /* @__PURE__ */ React.createElement("svg", { width: "42", height: "42", style: { transform: "rotate(-90deg)" } }, /* @__PURE__ */ React.createElement("circle", { cx: "21", cy: "21", r: "17", fill: "none", stroke: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)", strokeWidth: "3" }), /* @__PURE__ */ React.createElement("circle", { cx: "21", cy: "21", r: "17", fill: "none", stroke: score === 100 ? CAT.self.color : score >= 60 ? CAT.fitness.color : CAT.toxins.color, strokeWidth: "3", strokeDasharray: `${score / 100 * 107} 107`, strokeLinecap: "round", style: { transition: "stroke-dasharray 0.6s ease" } })), /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: "bold" } }, score))), (() => {
+  }, style: { background: "transparent", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 20, cursor: "pointer", fontSize: 9, color: "rgba(255,255,255,0.2)", padding: "4px 8px", letterSpacing: 1, fontFamily: "'Georgia',serif" } }, "reset")), /* @__PURE__ */ React.createElement("div", { style: { position: "relative", width: 42, height: 42 } }, /* @__PURE__ */ React.createElement("svg", { width: "42", height: "42", style: { transform: "rotate(-90deg)" } }, /* @__PURE__ */ React.createElement("circle", { cx: "21", cy: "21", r: "17", fill: "none", stroke: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)", strokeWidth: "3" }), /* @__PURE__ */ React.createElement("circle", { cx: "21", cy: "21", r: "17", fill: "none", stroke: score === 100 ? CAT.self.color : score >= 60 ? CAT.fitness.color : CAT.toxins.color, strokeWidth: "3", strokeDasharray: `${score / 100 * 107} 107`, strokeLinecap: "round", style: { transition: "stroke-dasharray 0.6s ease" } })), /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: "bold" } }, score))), (() => {
     function handleSwipe(onLeft, onRight) {
       let startX = null;
       return {
@@ -899,6 +939,8 @@ function NotesRemindersDrawer({ day, recurringReminders, saveRecurring, updateNo
   ), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 8, color: T.sub, marginTop: 6, letterSpacing: 1 } }, "auto-saved as you type")), tab === "plans" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 8, letterSpacing: 2, color: T.sub, marginBottom: 10 } }, "FOR THIS DAY"), plans.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: T.sub, opacity: 0.5, marginBottom: 14, letterSpacing: 1 } }, "no plans yet"), plans.map((r) => /* @__PURE__ */ React.createElement("div", { key: r.id, style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 10, padding: "8px 10px", background: T.isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", borderRadius: 10, border: `1px solid ${r.done ? "transparent" : T.border}` } }, /* @__PURE__ */ React.createElement("div", { onClick: () => togPlan(r.id), style: { width: 16, height: 16, borderRadius: "50%", border: `1.5px solid ${color}`, background: r.done ? color : "transparent", cursor: "pointer", flexShrink: 0 } }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, r.time && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color, letterSpacing: 1, marginBottom: 2 } }, r.time), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: r.done ? T.sub : T.text, textDecoration: r.done ? "line-through" : "none" } }, r.text)), /* @__PURE__ */ React.createElement("button", { onClick: () => delPlan(r.id), style: { background: "none", border: "none", color: T.sub, fontSize: 16, cursor: "pointer", opacity: 0.4 } }, "\xD7"))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginTop: 8 } }, /* @__PURE__ */ React.createElement("input", { type: "time", value: newTime, onChange: (e) => setNewTime(e.target.value), style: { ...inp(color, T), width: 90, fontSize: 14 } }), /* @__PURE__ */ React.createElement("input", { placeholder: "Add a plan...", value: newText, onChange: (e) => setNewText(e.target.value), onKeyDown: (e) => e.key === "Enter" && submitPlan(), style: { ...inp(color, T), flex: 1 } }), /* @__PURE__ */ React.createElement("button", { onClick: submitPlan, style: { background: `${color}22`, border: `1px solid ${color}55`, borderRadius: 8, color, cursor: "pointer", fontSize: 16, padding: "0 12px", fontFamily: "'Georgia',serif" } }, "+"))), tab === "recurring" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 8, letterSpacing: 2, color: T.sub, marginBottom: 10 } }, "REPEATS EVERY DAY OR WEEK"), recurringReminders.length === 0 && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: T.sub, opacity: 0.5, marginBottom: 14, letterSpacing: 1 } }, "no recurring plans yet"), recurringReminders.map((r) => /* @__PURE__ */ React.createElement("div", { key: r.id, style: { display: "flex", alignItems: "center", gap: 10, marginBottom: 10, padding: "8px 10px", background: T.isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", borderRadius: 10, border: `1px solid ${T.border}` } }, /* @__PURE__ */ React.createElement("div", { style: { width: 8, height: 8, borderRadius: "50%", background: recColor, flexShrink: 0 } }), /* @__PURE__ */ React.createElement("div", { style: { flex: 1 } }, r.time && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: recColor, letterSpacing: 1, marginBottom: 2 } }, r.time), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: T.text } }, r.text), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 8, color: T.sub, marginTop: 2, letterSpacing: 1 } }, r.freq === "daily" ? "Every day" : `Every week \xB7 ${(r.days || []).map((d) => DAY_LABELS[d]).join(", ")}`)), /* @__PURE__ */ React.createElement("button", { onClick: () => delRecurringPlan(r.id), style: { background: "none", border: "none", color: T.sub, fontSize: 16, cursor: "pointer", opacity: 0.4 } }, "\xD7"))), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 12, padding: 12, background: T.isDark ? "rgba(255,255,255,0.03)" : "rgba(0,0,0,0.03)", borderRadius: 12, border: `1px solid ${T.border}` } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 8 } }, /* @__PURE__ */ React.createElement("input", { type: "time", value: recTime, onChange: (e) => setRecTime(e.target.value), style: { ...inp(recColor, T), width: 90, fontSize: 14 } }), /* @__PURE__ */ React.createElement("input", { placeholder: "e.g. Morning walk...", value: recText, onChange: (e) => setRecText(e.target.value), onKeyDown: (e) => e.key === "Enter" && submitRecurringPlan(), style: { ...inp(recColor, T), flex: 1 } })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10 } }, ["daily", "weekly"].map((f) => /* @__PURE__ */ React.createElement("button", { key: f, onClick: () => setRecFreq(f), style: { flex: 1, background: recFreq === f ? `${recColor}22` : "transparent", border: `1px solid ${recFreq === f ? recColor : T.border}`, borderRadius: 8, color: recFreq === f ? recColor : T.sub, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 10, padding: "6px" } }, f.charAt(0).toUpperCase() + f.slice(1)))), recFreq === "weekly" && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 4, marginBottom: 10 } }, DAY_LABELS.map((dl, i) => /* @__PURE__ */ React.createElement("button", { key: i, onClick: () => setRecDays((prev) => prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]), style: { flex: 1, background: recDays.includes(i) ? `${recColor}33` : "transparent", border: `1px solid ${recDays.includes(i) ? recColor : T.border}`, borderRadius: 6, color: recDays.includes(i) ? recColor : T.sub, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 9, padding: "5px 0" } }, dl))), /* @__PURE__ */ React.createElement("button", { onClick: submitRecurringPlan, style: { width: "100%", background: `${recColor}18`, border: `1px solid ${recColor}44`, borderRadius: 10, color: recColor, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 11, padding: "10px", letterSpacing: 1 } }, "Add Recurring Plan"))))));
 }
 function FitnessPanelClean({ day, onOpenFitness, togWorkout, togMeal, updateWorkoutField, updMeal, onDeleteMeal, T, streak, mealStreak }) {
+  const [notesModal, setNotesModal] = useState(null);
+  const showWeight = true;
   const color = T.CAT.fitness.color;
   const { pressing, handlers } = useLongPress(onOpenFitness, 600);
   const [openId, setOpenId] = useState(null);
@@ -915,27 +957,61 @@ function FitnessPanelClean({ day, onOpenFitness, togWorkout, togMeal, updateWork
       }, 220);
     }
   }
-  return /* @__PURE__ */ React.createElement("div", { ...handlers, style: { background: T.panelBg, backdropFilter: "blur(14px)", borderRadius: 14, padding: "12px 10px 10px", border: `1px solid ${color}${T.isDark ? "22" : "33"}`, boxShadow: T.isDark ? "none" : `0 2px 14px ${color}14`, userSelect: "none", minWidth: 0, width: "100%", boxSizing: "border-box", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("style", null, `@keyframes fillBar{from{width:0%}to{width:100%}}`), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, paddingLeft: 2 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 8, letterSpacing: 3, color: pressing ? color : `${color}${T.isDark ? "99" : "cc"}`, transition: "color 0.2s" } }, "FITNESS", streak > 0 && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 7, letterSpacing: 1, color: `${color}66`, fontStyle: "italic", marginLeft: 5, whiteSpace: "nowrap" } }, "Day ", streak)), /* @__PURE__ */ React.createElement("div", { style: { width: 60, height: 2, borderRadius: 2, overflow: "hidden", background: `${color}22`, opacity: pressing ? 1 : 0, transition: "opacity 0.15s" } }, pressing && /* @__PURE__ */ React.createElement("div", { style: { height: "100%", background: color, animation: "fillBar 0.6s linear forwards" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 7, color: T.sub, letterSpacing: 1, opacity: pressing ? 1 : 0.4, transition: "opacity 0.2s", width: 48, textAlign: "right" } }, pressing ? "\u23F3" : "hold")), (day.workoutSessions || []).map((session) => {
+  return /* @__PURE__ */ React.createElement("div", { style: { position: "relative", width: "100%" } }, notesModal && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, zIndex: 9999, background: T.isDark ? "rgba(10,10,10,0.45)" : "rgba(240,236,228,0.45)", backdropFilter: "blur(16px)", display: "flex", flexDirection: "column" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 16px 10px", borderBottom: `1px solid ${color}22` } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 9, letterSpacing: 3, color: `${color}88`, fontFamily: "'Georgia',serif" } }, "EXERCISES"), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => {
+        updateWorkoutField(notesModal.sessionId, "notes", notesModal.value);
+        setNotesModal(null);
+      },
+      style: { background: `${color}22`, border: `1px solid ${color}33`, borderRadius: 20, color, fontSize: 10, padding: "5px 14px", cursor: "pointer", fontFamily: "'Georgia',serif", letterSpacing: 1 }
+    },
+    "done \u25BC"
+  )), /* @__PURE__ */ React.createElement(
+    "textarea",
+    {
+      autoFocus: true,
+      placeholder: "e.g. angles leg press 2 sets (3x12)\nincline dumbbell press 3x10\ncable fly 3x15...",
+      value: notesModal.value,
+      onChange: (e) => setNotesModal((p) => ({ ...p, value: e.target.value })),
+      style: { flex: 1, background: "transparent", border: "none", outline: "none", padding: "16px", fontSize: 15, fontFamily: "'Georgia',serif", color: T.isDark ? "rgba(255,255,255,0.9)" : "#111", resize: "none", lineHeight: 2 }
+    }
+  )), /* @__PURE__ */ React.createElement("div", { ...handlers, style: { background: T.panelBg, backdropFilter: "blur(14px)", borderRadius: 14, padding: "12px 10px 10px", border: `1px solid ${color}${T.isDark ? "22" : "33"}`, boxShadow: T.isDark ? "none" : `0 2px 14px ${color}14`, userSelect: "none", minWidth: 0, width: "100%", boxSizing: "border-box", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("style", null, `@keyframes fillBar{from{width:0%}to{width:100%}}`), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, paddingLeft: 2 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 8, letterSpacing: 3, color: pressing ? color : `${color}${T.isDark ? "99" : "cc"}`, transition: "color 0.2s" } }, "FITNESS", streak > 0 && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 7, letterSpacing: 1, color: `${color}66`, fontStyle: "italic", marginLeft: 5, whiteSpace: "nowrap" } }, "Day ", streak)), /* @__PURE__ */ React.createElement("div", { style: { width: 60, height: 2, borderRadius: 2, overflow: "hidden", background: `${color}22`, opacity: pressing ? 1 : 0, transition: "opacity 0.15s" } }, pressing && /* @__PURE__ */ React.createElement("div", { style: { height: "100%", background: color, animation: "fillBar 0.6s linear forwards" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 7, color: T.sub, letterSpacing: 1, opacity: pressing ? 1 : 0.4, transition: "opacity 0.2s", width: 48, textAlign: "right" } }, pressing ? "\u23F3" : "hold")), (day.workoutSessions || []).map((session) => {
     const preset = WORKOUT_PRESETS.find((p) => p.id === session.typeId) || WORKOUT_PRESETS[0];
     const isOpen = openId === session.id;
     const hasFields = session.typeId === "custom" ? true : preset.fields.length > 0;
-    return /* @__PURE__ */ React.createElement("div", { key: session.id, style: { marginBottom: 4 } }, /* @__PURE__ */ React.createElement(
+    const sd = session.data || {};
+    const previewMuscle = sd.muscle || sd.style || sd.sport || sd.skill || sd.name || "";
+    const previewNotes = sd.notes || "";
+    return /* @__PURE__ */ React.createElement("div", { key: session.id, style: { marginBottom: 3 } }, /* @__PURE__ */ React.createElement(
       "div",
       {
         onClick: (e) => {
           e.stopPropagation();
           handleTap(session.id, () => togWorkout(session.id), () => hasFields && setOpenId((p) => p === session.id ? null : session.id));
         },
-        style: { display: "flex", alignItems: "center", gap: 8, background: session.done ? `${color}1a` : T.tileBg, border: `1px solid ${session.done ? `${color}${T.isDark ? "55" : "77"}` : T.tileBorder}`, borderRadius: 8, padding: "7px 9px", cursor: "pointer", transition: "all 0.2s" }
+        style: { display: "flex", alignItems: "center", gap: 6, background: session.done ? `${color}1a` : T.tileBg, border: `1px solid ${session.done ? `${color}${T.isDark ? "55" : "77"}` : T.tileBorder}`, borderRadius: 7, padding: "5px 8px", cursor: "pointer", transition: "all 0.2s" }
       },
-      /* @__PURE__ */ React.createElement("div", { style: { width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: session.done ? color : T.dot, boxShadow: session.done ? `0 0 6px ${color}88` : "none", transition: "all 0.3s" } }),
-      /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, fontWeight: "bold", color: session.done ? T.isDark ? "#fff" : "#111" : T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.45)", letterSpacing: 0.5, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, preset.icon, " ", session.typeId === "custom" && session.customName ? session.customName : preset.label)),
-      hasFields && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 8, color: `${color}55`, flexShrink: 0 } }, isOpen ? "\u25B2" : "\u25BC")
-    ), isOpen && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 4, marginTop: 5, paddingLeft: 2 } }, (session.typeId === "custom" && session.customName ? [{ key: "notes", placeholder: `How was ${session.customName}?`, multiline: true }] : preset.fields).map((field) => {
+      /* @__PURE__ */ React.createElement("div", { style: { width: 6, height: 6, borderRadius: "50%", flexShrink: 0, background: session.done ? color : T.dot, boxShadow: session.done ? `0 0 5px ${color}88` : "none", transition: "all 0.3s" } }),
+      /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, fontWeight: "bold", color: session.done ? T.isDark ? "#fff" : "#111" : T.isDark ? "rgba(255,255,255,0.55)" : "rgba(0,0,0,0.45)", letterSpacing: 0.3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, preset.icon, " ", session.typeId === "custom" && session.customName ? session.customName : preset.label), !isOpen && session.done && (previewMuscle || showWeight && sd.weight) && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 8, color: `${color}77`, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, previewMuscle, showWeight && sd.weight ? ` \xB7 ${sd.weight}kg` : "")),
+      hasFields && /* @__PURE__ */ React.createElement("div", { onClick: (e) => {
+        e.stopPropagation();
+        if (isOpen) setOpenId(null);
+        else setOpenId(session.id);
+      }, style: { fontSize: 7, color: `${color}55`, flexShrink: 0, padding: "4px" } }, isOpen ? "\u25B2" : "\u25BC")
+    ), isOpen && /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 3, marginTop: 4, paddingLeft: 2 } }, (session.typeId === "custom" && session.customName ? [{ key: "notes", placeholder: `How was ${session.customName}?`, multiline: true }] : preset.fields).map((field) => {
       const safeData = session.data || {};
-      return field.multiline ? /* @__PURE__ */ React.createElement("textarea", { key: field.key, placeholder: field.placeholder, value: safeData[field.key] || "", onChange: (e) => updateWorkoutField(session.id, field.key, e.target.value), rows: 3, style: { ...inp(color, T), resize: "none" } }) : /* @__PURE__ */ React.createElement("input", { key: field.key, placeholder: field.placeholder, value: safeData[field.key] || "", onChange: (e) => updateWorkoutField(session.id, field.key, e.target.value), style: inp(color, T) });
-    })));
-  }), /* @__PURE__ */ React.createElement("div", { style: { height: 1, background: T.isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", margin: "6px 0" } }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, paddingLeft: 2 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 8, letterSpacing: 3, color: `${color}${T.isDark ? "99" : "cc"}` } }, "MEALS", mealStreak > 0 && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 7, letterSpacing: 1, color: `${color}66`, fontStyle: "italic", marginLeft: 5, whiteSpace: "nowrap" } }, "Day ", mealStreak))), day.meals.map((m) => {
+      return field.multiline ? /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          key: field.key,
+          onClick: () => setNotesModal({ sessionId: session.id, value: safeData[field.key] || "" }),
+          style: { ...inp(color, T), textAlign: "left", cursor: "pointer", minHeight: 36, fontSize: 13, color: safeData[field.key] ? T.isDark ? "#fff" : "#111" : `${color}55` }
+        },
+        safeData[field.key] ? safeData[field.key].split("\n")[0] + (safeData[field.key].split("\n").length > 1 ? " \u2026" : "") : field.placeholder
+      ) : /* @__PURE__ */ React.createElement("input", { key: field.key, placeholder: field.placeholder, value: safeData[field.key] || "", onChange: (e) => updateWorkoutField(session.id, field.key, e.target.value), style: { ...inp(color, T), fontSize: 13, padding: "4px 7px" } });
+    }), /* @__PURE__ */ React.createElement("button", { onClick: () => setOpenId(null), style: { background: "transparent", border: "none", color: `${color}55`, fontSize: 9, cursor: "pointer", textAlign: "right", padding: "2px 0", letterSpacing: 1, fontFamily: "'Georgia',serif" } }, "done \u25BC")));
+  }), /* @__PURE__ */ React.createElement("div", { style: { height: 1, background: T.isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)", margin: "6px 0" } }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, paddingLeft: 2 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 8, letterSpacing: 3, color: `${color}${T.isDark ? "99" : "cc"}` } }, "MEALS", /* @__PURE__ */ React.createElement("span", { style: { fontSize: 7, letterSpacing: 1, color: `${color}66`, fontStyle: "italic", marginLeft: 5, whiteSpace: "nowrap" } }, "Day ", mealStreak > 0 ? mealStreak : 1))), day.meals.map((m) => {
     const mealId = `meal-${m.id}`;
     const isOpen = openId === mealId;
     return /* @__PURE__ */ React.createElement("div", { key: m.id, style: { marginBottom: 4 } }, /* @__PURE__ */ React.createElement(
@@ -954,41 +1030,8 @@ function FitnessPanelClean({ day, onOpenFitness, togWorkout, togMeal, updateWork
         e.stopPropagation();
         onDeleteMeal(m.id);
       }, style: { fontSize: 10, color: T.isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.15)", cursor: "pointer", paddingLeft: 4, flexShrink: 0, lineHeight: 1 } }, "\u2212")
-    ), isOpen && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 5 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 5 } }, /* @__PURE__ */ React.createElement("input", { autoFocus: true, placeholder: "What did you eat?", value: m.content, onChange: (e) => updMeal(m.id, "content", e.target.value), style: { ...inp(color, T), flex: 1 } }), /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: 8, background: `${color}22`, border: `1px solid ${color}44`, cursor: "pointer", flexShrink: 0 } }, "\u{1F4F7}", /* @__PURE__ */ React.createElement("input", { type: "file", accept: "image/*", capture: "environment", style: { display: "none" }, onChange: (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const base64 = reader.result.split(",")[1];
-        updMeal(m.id, "content", "Analysing...");
-        try {
-          const apiKey = localStorage.getItem("doer_api_key") || "";
-          if (!apiKey) {
-            updMeal(m.id, "content", "Add API key in settings \u2699");
-            return;
-          }
-          const res = await fetch("https://api.anthropic.com/v1/messages", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-            body: JSON.stringify({
-              model: "claude-sonnet-4-20250514",
-              max_tokens: 200,
-              messages: [{ role: "user", content: [
-                { type: "image", source: { type: "base64", media_type: file.type, data: base64 } },
-                { type: "text", text: "Identify this food in 1 line: food name and estimated calories. Format: 'Food name \xB7 ~X kcal'. Be concise." }
-              ] }]
-            })
-          });
-          const data = await res.json();
-          const text = data.content?.[0]?.text || "Could not identify";
-          updMeal(m.id, "content", text);
-        } catch (err) {
-          updMeal(m.id, "content", "Error \u2014 try again");
-        }
-      };
-      reader.readAsDataURL(file);
-    } }))), m.content && m.content !== "Analysing..." && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: `${color}88`, letterSpacing: 0.5, paddingLeft: 2 } }, m.calories ? `~${m.calories} kcal` : "")));
-  }));
+    ), isOpen && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 5 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 5 } }, /* @__PURE__ */ React.createElement("input", { autoFocus: true, placeholder: "What did you eat?", value: m.content, onChange: (e) => updMeal(m.id, "content", e.target.value), style: { ...inp(color, T), flex: 1 } })), m.content && m.content !== "Analysing..." && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 9, color: `${color}88`, letterSpacing: 0.5, paddingLeft: 2 } }, m.calories ? `~${m.calories} kcal` : "")));
+  })));
 }
 function WorkPanel({ day, onOpenWork, everyTasks, togEveryTask, addTodayTask, togTodayTask, remTodayTask, T, streak }) {
   const color = T.CAT.work.color;
