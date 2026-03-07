@@ -102,10 +102,9 @@ function calcFaithStreak(allYearsData, practice) {
   return countStreak(
     allYearsData,
     (day) => {
-      const freeze = getFreezeInfo();
       const items = day.faithItems || [];
       if (items.length === 0) return false;
-      const activeItems = freeze ? items.slice(0, freeze.fromIndex) : items;
+      const activeItems = items;
       if (activeItems.length === 0) return true;
       return activeItems.every((f) => f.done);
     },
@@ -1219,53 +1218,36 @@ function SelfDrawer({ selfHabitIds, onSave, onClose, T }) {
     onClose();
   }, style: { width: "100%", background: `${color}22`, border: `1px solid ${color}55`, borderRadius: 10, color, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 12, letterSpacing: 2, padding: "12px", fontWeight: "bold" } }, "SAVE HABITS"))));
 }
-function getFreezeInfo() {
+function getFreezeForDay(dk) {
   try {
-    const data = JSON.parse(localStorage.getItem("doer_freeze") || "null");
-    if (!data) return null;
-    const today2 = /* @__PURE__ */ new Date();
-    today2.setHours(0, 0, 0, 0);
-    const unfreeze = new Date(data.unfreezeDate);
-    unfreeze.setHours(0, 0, 0, 0);
-    if (today2 >= unfreeze) {
-      localStorage.removeItem("doer_freeze");
-      return null;
-    }
+    const data = JSON.parse(localStorage.getItem("doer_freeze_" + dk) || "null");
     return data;
   } catch (e) {
     return null;
   }
 }
-function setFreezeInfo(fromIndex, days) {
-  const unfreeze = /* @__PURE__ */ new Date();
-  unfreeze.setHours(0, 0, 0, 0);
-  unfreeze.setDate(unfreeze.getDate() + days);
-  localStorage.setItem("doer_freeze", JSON.stringify({ fromIndex, unfreezeDate: unfreeze.toISOString() }));
+function setFreezeForDay(dk, fromIndex) {
+  localStorage.setItem("doer_freeze_" + dk, JSON.stringify({ fromIndex }));
+}
+function clearFreezeForDay(dk) {
+  localStorage.removeItem("doer_freeze_" + dk);
 }
 function FaithPanel({ day, practice, ramzan, togF, tog, onOpenPicker, T, streak }) {
   const color = T.CAT.faith.color;
   const { pressing, handlers } = useLongPress(onOpenPicker, 600);
-  const [freeze, setFreeze] = useState(() => getFreezeInfo());
-  const [showFreezeInput, setShowFreezeInput] = useState(false);
-  const [freezeFromIdx, setFreezeFromIdx] = useState(null);
-  const [freezeDays, setFreezeDays] = useState("7");
+  const dk = dayKey(new Date(day.date));
+  const [freezeTick, setFreezeTick] = useState(0);
+  const freeze = getFreezeForDay(dk);
   function handleFreezeFrom(idx) {
-    setFreezeFromIdx(idx);
-    setShowFreezeInput(true);
-  }
-  function confirmFreeze() {
-    const days = parseInt(freezeDays) || 7;
-    setFreezeInfo(freezeFromIdx, days);
-    setFreeze(getFreezeInfo());
-    setShowFreezeInput(false);
+    setFreezeForDay(dk, idx);
+    setFreezeTick((t) => t + 1);
   }
   function unfreeze() {
-    localStorage.removeItem("doer_freeze");
-    setFreeze(null);
+    clearFreezeForDay(dk);
+    setFreezeTick((t) => t + 1);
   }
   const isFrozen = (idx) => freeze && idx >= freeze.fromIndex;
-  const daysLeft = freeze ? Math.ceil((new Date(freeze.unfreezeDate) - (/* @__PURE__ */ new Date()).setHours(0, 0, 0, 0)) / 864e5) : 0;
-  return /* @__PURE__ */ React.createElement("div", { ...handlers, style: { background: T.panelBg, backdropFilter: "blur(14px)", borderRadius: 14, padding: "12px 10px 10px", border: `1px solid ${color}${T.isDark ? "22" : "33"}`, boxShadow: T.isDark ? "none" : `0 2px 14px ${color}14`, userSelect: "none", cursor: "pointer" } }, /* @__PURE__ */ React.createElement("style", null, `@keyframes fillBar{from{width:0%}to{width:100%}}`), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, paddingLeft: 2 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 8, letterSpacing: 3, color: pressing ? color : `${color}${T.isDark ? "99" : "cc"}`, transition: "color 0.2s" } }, "FAITH", streak > 0 && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 7, letterSpacing: 1, color: `${color}66`, fontStyle: "italic", marginLeft: 5, whiteSpace: "nowrap" } }, "Day ", streak)), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 7, color: T.isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.15)", fontStyle: "italic", display: "flex", alignItems: "center", gap: 3 } }, /* @__PURE__ */ React.createElement("span", null, practice.icon), /* @__PURE__ */ React.createElement("span", null, practice.label))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 40, height: 2, borderRadius: 2, overflow: "hidden", background: `${color}22`, opacity: pressing ? 1 : 0, transition: "opacity 0.15s" } }, pressing && /* @__PURE__ */ React.createElement("div", { style: { height: "100%", background: color, animation: "fillBar 0.6s linear forwards" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 7, color: T.sub, letterSpacing: 1, opacity: pressing ? 1 : 0.4, transition: "opacity 0.2s" } }, pressing ? "\u23F3" : "hold"))), freeze && /* @__PURE__ */ React.createElement("div", { onClick: (e) => e.stopPropagation(), style: { marginBottom: 8, display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement("button", { onClick: unfreeze, style: { background: "transparent", border: "none", color: `${color}55`, cursor: "pointer", fontSize: 7, fontFamily: "'Georgia',serif", letterSpacing: 1, padding: 0 } }, "unfreeze \xB7 ", daysLeft, "d left")), showFreezeInput && /* @__PURE__ */ React.createElement("div", { onClick: (e) => e.stopPropagation(), style: { background: T.isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)", borderRadius: 10, padding: 10, marginBottom: 8, border: `1px solid ${color}33` } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 8, letterSpacing: 2, color: T.sub, marginBottom: 6 } }, "FREEZE FOR HOW MANY DAYS?"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6 } }, /* @__PURE__ */ React.createElement("input", { value: freezeDays, onChange: (e) => setFreezeDays(e.target.value), style: { width: 50, background: T.isDark ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.8)", border: `1px solid ${color}33`, borderRadius: 6, color: T.text, fontSize: 14, padding: "5px 8px", fontFamily: "'Georgia',serif", outline: "none" } }), /* @__PURE__ */ React.createElement("button", { onClick: confirmFreeze, style: { flex: 1, background: `${color}22`, border: `1px solid ${color}55`, borderRadius: 6, color, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 10, padding: "5px", letterSpacing: 1 } }, "FREEZE"), /* @__PURE__ */ React.createElement("button", { onClick: () => setShowFreezeInput(false), style: { background: "transparent", border: `1px solid ${T.border}`, borderRadius: 6, color: T.sub, cursor: "pointer", fontFamily: "'Georgia',serif", fontSize: 10, padding: "5px 8px" } }, "\u2715"))), (day.faithItems || []).map((f, idx) => /* @__PURE__ */ React.createElement("div", { key: f.id, style: { marginBottom: 4 } }, /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { ...handlers, style: { background: T.panelBg, backdropFilter: "blur(14px)", borderRadius: 14, padding: "12px 10px 10px", border: `1px solid ${color}${T.isDark ? "22" : "33"}`, boxShadow: T.isDark ? "none" : `0 2px 14px ${color}14`, userSelect: "none", cursor: "pointer" } }, /* @__PURE__ */ React.createElement("style", null, `@keyframes fillBar{from{width:0%}to{width:100%}}`), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, paddingLeft: 2 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 8, letterSpacing: 3, color: pressing ? color : `${color}${T.isDark ? "99" : "cc"}`, transition: "color 0.2s" } }, "FAITH", streak > 0 && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 7, letterSpacing: 1, color: `${color}66`, fontStyle: "italic", marginLeft: 5, whiteSpace: "nowrap" } }, "Day ", streak)), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 7, color: T.isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.15)", fontStyle: "italic", display: "flex", alignItems: "center", gap: 3 } }, /* @__PURE__ */ React.createElement("span", null, practice.icon), /* @__PURE__ */ React.createElement("span", null, practice.label))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { width: 40, height: 2, borderRadius: 2, overflow: "hidden", background: `${color}22`, opacity: pressing ? 1 : 0, transition: "opacity 0.15s" } }, pressing && /* @__PURE__ */ React.createElement("div", { style: { height: "100%", background: color, animation: "fillBar 0.6s linear forwards" } })), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 7, color: T.sub, letterSpacing: 1, opacity: pressing ? 1 : 0.4, transition: "opacity 0.2s" } }, pressing ? "\u23F3" : "hold"))), freeze && /* @__PURE__ */ React.createElement("div", { onClick: (e) => e.stopPropagation(), style: { marginBottom: 8, display: "flex", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement("button", { onClick: unfreeze, style: { background: "transparent", border: "none", color: `${color}55`, cursor: "pointer", fontSize: 7, fontFamily: "'Georgia',serif", letterSpacing: 1, padding: 0 } }, "unfreeze \xB7 today only")), (day.faithItems || []).map((f, idx) => /* @__PURE__ */ React.createElement("div", { key: f.id, style: { marginBottom: 4 } }, /* @__PURE__ */ React.createElement(
     "div",
     {
       onClick: isFrozen(idx) ? null : (e) => {
