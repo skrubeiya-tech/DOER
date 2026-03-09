@@ -268,11 +268,14 @@ function getDayScore(day, practice, everyTasks = []) {
   if (!day) return 0;
   const ramzan = practice?.id === "islam" && isRamzan(day.date);
   const everyDone = day.everyDone || [];
+  const dk = dayKey(new Date(day.date));
+  const freeze = getFreezeForDay(dk);
+  const activeFaith = freeze ? (day.faithItems || []).slice(0, freeze.fromIndex) : day.faithItems || [];
   const checks = [
     ...(day.todayTasks || []).map((t) => t.done),
     ...everyTasks.map((t) => everyDone.includes(t.id)),
     ...(day.workoutSessions || []).map((s) => s.done),
-    ...(day.faithItems || []).map((f) => f.done),
+    ...activeFaith.map((f) => f.done),
     ...day.meals.map((m) => m.done),
     ...(day.selfItems || []).map((s) => s.done)
   ];
