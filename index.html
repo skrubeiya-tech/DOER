@@ -1065,7 +1065,8 @@ const{isDark,CAT}=T;const color=CAT.fitness.color;
 const modalBg=isDark?"#0d0d0d":"#fdfaf5";const borderCol=isDark?"rgba(255,255,255,0.08)":"rgba(0,0,0,0.1)";
 const[status,setStatus]=useState("loading");
 const[places,setPlaces]=useState([]);
-const[coords,setCoords]=useState(null);
+const mapRef=React.useRef(null);
+const leafletMap=React.useRef(null);
 const CE=React.createElement;
 const typeToOSM={
 strength:['"leisure"="fitness_centre"','"amenity"="gym"'],
@@ -1081,15 +1082,23 @@ sports:['"leisure"="pitch"','"leisure"="sports_centre"'],
 custom:['"leisure"="fitness_centre"','"leisure"="park"']
 };
 const icons={"fitness_centre":"🏋️","gym":"🏋️","swimming_pool":"🏊","track":"🏃","park":"🌳","pitch":"⚽","sports_centre":"🏟️","fitness_station":"💪","bicycle_rental":"🚴"};
-useEffect(()=>{
-if(!navigator.geolocation){setStatus("denied");return;}
-navigator.geolocation.getCurrentPosition(
-pos=>{
+function loadLeafletAndInit(){
+if(window.L){initMap();return;}
+const link=document.createElement("link");
+link.rel="stylesheet";
+link.href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+document.head.appendChild(link);
+const script=document.createElement("script");
+script.src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+script.onload=initMap;
+script.onerror=()=>setStatus("error");
+document.head.appendChild(script);
+}
+function initMap(){
+navigator.geolocation.getCurrentPosition(pos=>{
 const lat=pos.coords.latitude,lng=pos.coords.longitude;
-setCoords({lat,lng});
 setStatus("fetching");
-const scheduled=workoutSchedule&&workoutSchedule.length>0
-?workoutSchedule:[{typeId:"strength"},{typeId:"cardio"},{typeId:"swimming"}];
+const scheduled=workoutSchedule&&workoutSchedule.length>0?workoutSchedule:[{typeId:"strength"},{typeId:"cardio"},{typeId:"swimming"}];
 const tagSet=new Set(scheduled.flatMap(w=>typeToOSM[w.typeId]||typeToOSM.strength));
 const nodes=[...tagSet].map(t=>`node[${t}](around:3000,${lat},${lng});way[${t}](around:3000,${lat},${lng});`).join("\n");
 const q=`[out:json][timeout:20];(\n${nodes}\n);out center 40;`;
@@ -1098,34 +1107,49 @@ fetch("https://overpass-api.de/api/interpreter",{method:"POST",body:"data="+enco
 .then(data=>{
 const results=(data.elements||[])
 .filter(el=>el.tags&&(el.lat||el.center)&&el.tags.name)
-.map(el=>({
-id:el.id,name:el.tags.name,
-type:el.tags.leisure||el.tags.amenity||"place",
-lat:el.lat||el.center.lat,lng:el.lon||el.center.lon,
-icon:icons[el.tags.leisure||el.tags.amenity]||"📍"
-}))
+.map(el=>({id:el.id,name:el.tags.name,type:el.tags.leisure||el.tags.amenity||"place",lat:el.lat||el.center.lat,lng:el.lon||el.center.lon,icon:icons[el.tags.leisure||el.tags.amenity]||"📍"}))
 .filter((p,i,a)=>a.findIndex(x=>x.name===p.name)===i)
 .slice(0,25);
 setPlaces(results);
 setStatus("ready");
+setTimeout(()=>{
+if(!mapRef.current||leafletMap.current)return;
+const map=window.L.map(mapRef.current,{zoomControl:false}).setView([lat,lng],15);
+leafletMap.current=map;
+window.L.control.zoom({position:"topright"}).addTo(map);
+const tileUrl=isDark
+?"https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+:"https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png";
+window.L.tileLayer(tileUrl,{attribution:"© CartoDB",maxZoom:19}).addTo(map);
+const pulseIcon=window.L.divIcon({
+html:`<div style="width:16px;height:16px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 0 0 6px ${color}44;"></div>`,
+iconSize:[16,16],iconAnchor:[8,8],className:""
+});
+window.L.marker([lat,lng],{icon:pulseIcon}).addTo(map);
+results.forEach(p=>{
+const icon=window.L.divIcon({
+html:`<div style="font-size:20px;filter:drop-shadow(0 1px 4px rgba(0,0,0,0.5))">${p.icon}</div>`,
+iconSize:[28,28],iconAnchor:[14,14],className:""
+});
+window.L.marker([p.lat,p.lng],{icon}).addTo(map)
+.bindPopup(`<b style="font-family:Georgia,serif">${p.name}</b>`);
+});
+},300);
 })
 .catch(()=>{setPlaces([]);setStatus("ready");});
-},
-err=>{setStatus(err.code===1?"denied":"error");},
-{timeout:10000,enableHighAccuracy:true}
-);
-},[]);
+},()=>setStatus("denied"),{timeout:10000,enableHighAccuracy:true});
+}
+useEffect(()=>{loadLeafletAndInit();},[]);
 const subtitle=workoutSchedule&&workoutSchedule.length>0
-?workoutSchedule.map(w=>{const p=WORKOUT_PRESETS.find(x=>x.id===w.typeId)||WORKOUT_PRESETS[0];return p.label;}).join(" \xB7 ").toUpperCase()
-:"GYMS \xB7 PARKS \xB7 POOLS";
-const mapUrl=coords?`https://www.openstreetmap.org/export/embed.html?bbox=${coords.lng-0.025},${coords.lat-0.025},${coords.lng+0.025},${coords.lat+0.025}&layer=mapnik&marker=${coords.lat},${coords.lng}`:""
+?workoutSchedule.map(w=>{const p=WORKOUT_PRESETS.find(x=>x.id===w.typeId)||WORKOUT_PRESETS[0];return p.label;}).join(" · ").toUpperCase()
+:"GYMS · PARKS · POOLS";
 return CE("div",{style:{position:"fixed",inset:0,zIndex:999,display:"flex",flexDirection:"column",background:modalBg}},
 CE("div",{style:{padding:"14px 18px 10px",borderBottom:`1px solid ${borderCol}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0}},
 CE("div",null,
 CE("div",{style:{fontSize:14,fontWeight:"bold",letterSpacing:3,color:T.text}},"NEARBY"),
 CE("div",{style:{fontSize:9,color:T.sub,letterSpacing:2,marginTop:2}},subtitle)
 ),
-CE("button",{onClick:onClose,style:{background:"none",border:"none",color:T.sub,cursor:"pointer",fontSize:22,lineHeight:1}},"\xD7")
+CE("button",{onClick:onClose,style:{background:"none",border:"none",color:T.sub,cursor:"pointer",fontSize:22,lineHeight:1}},"×")
 ),
 status==="loading"&&CE("div",{style:{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:14}},
 CE("div",{style:{fontSize:36}},"📍"),
@@ -1138,40 +1162,36 @@ CE("div",{style:{fontSize:11,color:T.sub,letterSpacing:2}},"FINDING NEARBY PLACE
 status==="denied"&&CE("div",{style:{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,padding:"0 32px",textAlign:"center"}},
 CE("div",{style:{fontSize:36}},"🔒"),
 CE("div",{style:{fontSize:14,color:T.text,fontWeight:"bold",marginTop:4}},"Location access needed"),
-CE("div",{style:{fontSize:11,color:T.sub,marginTop:8,lineHeight:1.8}},"This feature requires the app to be opened via its web link, not as a local file. Once on the App Store it will work automatically."),
-CE("button",{onClick:onClose,style:{marginTop:20,background:`${color}22`,border:`1px solid ${color}55`,borderRadius:10,color,cursor:"pointer",fontFamily:"'Georgia',serif",fontSize:12,padding:"10px 24px",letterSpacing:1}},"Got it")
+CE("div",{style:{fontSize:11,color:T.sub,marginTop:8,lineHeight:1.8}},"Please allow location access in Safari settings.")
 ),
 status==="error"&&CE("div",{style:{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12}},
 CE("div",{style:{fontSize:32}},"⚠️"),
-CE("div",{style:{fontSize:11,color:T.sub,letterSpacing:1}},"Could not get location. Check settings.")
+CE("div",{style:{fontSize:11,color:T.sub,letterSpacing:1}},"Could not load map.")
 ),
-status==="ready"&&mapUrl&&CE(React.Fragment,null,
-CE("div",{style:{flex:"0 0 45%",position:"relative"}},
-CE("iframe",{src:mapUrl,style:{width:"100%",height:"100%",border:"none"},title:"Map"}),
-CE("div",{style:{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-100%)",pointerEvents:"none",zIndex:10,display:"flex",flexDirection:"column",alignItems:"center"}},
-CE("div",{style:{width:22,height:22,borderRadius:"50%",background:color,border:"3px solid #fff",boxShadow:`0 0 0 4px ${color}55, 0 2px 8px rgba(0,0,0,0.4)`}}),
-CE("div",{style:{width:2,height:10,background:color,marginTop:1}})
-)
-),
+status==="ready"&&CE(React.Fragment,null,
+CE("div",{ref:mapRef,style:{flex:"0 0 50%",minHeight:0}}),
 CE("div",{style:{flex:1,background:modalBg,borderTop:`1px solid ${borderCol}`,overflowY:"auto"}},
-places.length===0&&CE("div",{style:{padding:"20px",textAlign:"center",color:T.sub,fontSize:11,letterSpacing:1}},"No named places found nearby"),
+places.length===0&&CE("div",{style:{padding:"20px",textAlign:"center",color:T.sub,fontSize:11,letterSpacing:1}},"No places found nearby"),
 places.length>0&&CE("div",{style:{padding:"8px 16px 4px",fontSize:8,letterSpacing:3,color:T.sub}},places.length," PLACES FOUND WITHIN 3KM"),
 ...places.map(p=>CE("div",{key:p.id,
-onClick:()=>window.open(`https://maps.apple.com/?q=${encodeURIComponent(p.name)}&ll=${p.lat},${p.lng}`,"_blank"),
+onClick:()=>window.open("https://maps.apple.com/?q="+encodeURIComponent(p.name)+"&ll="+p.lat+","+p.lng,"_blank"),
 style:{display:"flex",alignItems:"center",gap:12,padding:"11px 16px",borderBottom:`1px solid ${borderCol}`,cursor:"pointer"}},
 CE("div",{style:{fontSize:22,flexShrink:0}},p.icon),
 CE("div",{style:{flex:1,minWidth:0}},
 CE("div",{style:{fontSize:12,fontWeight:"bold",color:T.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}},p.name),
 CE("div",{style:{fontSize:9,color:T.sub,marginTop:2,letterSpacing:1,textTransform:"uppercase"}},p.type)
 ),
-CE("div",{style:{fontSize:14,color:`${color}66`}},"\u203A")
+CE("div",{style:{fontSize:14,color:color+"88"}},">")
 ))
 )
 )
 );
 }
-ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(Root));
+
+ReactDOM.createRoot(document.getElementById(“root”)).render(React.createElement(Root));
 </script>
+
 <script>if(window.navigator.standalone){document.addEventListener('touchend',function(e){var el=e.target;if(el.tagName==='INPUT'||el.tagName==='TEXTAREA'){setTimeout(function(){el.focus();},50);}},false);}</script>
+
 </body>
 </html>
