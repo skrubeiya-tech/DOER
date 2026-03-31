@@ -21,7 +21,7 @@ const DAY_NAMES=[“Sunday”,“Monday”,“Tuesday”,“Wednesday”,“Thur
 const DAY_SHORT=[“Sun”,“Mon”,“Tue”,“Wed”,“Thu”,“Fri”,“Sat”];
 const MONTH_NAMES=[“January”,“February”,“March”,“April”,“May”,“June”,“July”,“August”,“September”,“October”,“November”,“December”];
 const today=new Date();const CURRENT_YEAR=today.getFullYear();
-const RAMZAN_START=new Date(CURRENT_YEAR,2,1);const RAMZAN_END=new Date(CURRENT_YEAR,2,29);
+const RAMZAN_START=new Date(CURRENT_YEAR,2,1);const RAMZAN_END=new Date(CURRENT_YEAR,2,30);
 function isRamzan(d){return d>=RAMZAN_START&&d<=RAMZAN_END;}
 function dayKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
 function dateKey(d){return dayKey(d);}
@@ -173,42 +173,17 @@ return map;
 }
 function makePlan(text=””,time=””){return{id:String(Date.now())+Math.random().toString(36).slice(2),text,time,done:false};}
 function makeRecurringPlan(text=””,time=””,freq=“daily”,days=[]){return{id:String(Date.now())+Math.random().toString(36).slice(2),text,time,freq,days};}
-const ALL_CATS=[“fitness”,“faith”,“work”,“self”,“discipline”];
-function getDayScore(day,practice,everyTasks=[],selfHabitSchedule={},activeCategories=ALL_CATS,addictions=null){
+function getDayScore(day,practice,everyTasks=[],selfHabitSchedule={}){
 if(!day)return 0;
-const ac=activeCategories||ALL_CATS;
 const dow=new Date(day.date).getDay();
 const everyDone=day.everyDone||[];const dk=dayKey(new Date(day.date));const freeze=getFreezeForDay(dk);
-const checks=[];
-if(ac.includes(“fitness”)){
-(day.workoutSessions||[]).forEach(s=>checks.push(s.done));
-(day.meals||[]).forEach(m=>checks.push(m.done));
-}
-if(ac.includes(“faith”)){
 const activeFaith=freeze?(day.faithItems||[]).slice(0,freeze.fromIndex):day.faithItems||[];
-activeFaith.forEach(f=>checks.push(f.done));
-}
-if(ac.includes(“work”)){
-everyTasks.forEach(t=>checks.push(everyDone.includes(t.id)));
-(day.todayTasks||[]).forEach(t=>checks.push(t.done));
-}
-if(ac.includes(“self”)){
 const activeSelf=(day.selfItems||[]).filter(s=>{
 const sched=selfHabitSchedule[s.habitId];
 return !sched||sched.length===0||sched.includes(dow);
 });
-activeSelf.forEach(s=>checks.push(s.done));
-}
-if(ac.includes(“discipline”)){
-// Only score discipline if user has at least one addiction tracker set up
-const hasTrackers=addictions&&addictions.length>0;
-if(hasTrackers){
-const hasSlip=(day.toxins||[]).filter(t=>t.includes(”||”)).length>0;
-checks.push(!hasSlip); // clean day = done, slip = not done
-}
-}
-const done=checks.filter(Boolean).length;
-return checks.length===0?0:Math.round(done/checks.length*100);
+const checks=[…(day.todayTasks||[]).map(t=>t.done),…everyTasks.map(t=>everyDone.includes(t.id)),…(day.workoutSessions||[]).map(s=>s.done),…activeFaith.map(f=>f.done),…day.meals.map(m=>m.done),…activeSelf.map(s=>s.done)];
+const done=checks.filter(Boolean).length;return checks.length===0?0:Math.round(done/checks.length*100);
 }
 function getPageBgDark(day,practice){
 if(!day)return”#1a0f00”;const score=getDayScore(day,practice),tox=(day.toxins||[]).filter(t=>t.includes(”||”)).length,t=score/100;let r,g,b;
@@ -235,8 +210,7 @@ const yearKeys=[];for(let y=CURRENT_YEAR-10;y<=CURRENT_YEAR+5;y++)yearKeys.push(
 const ayd={};
 yearKeys.forEach(y=>{const saved=loadFromStorage(`doer_yearData_${y}`)||(y===CURRENT_YEAR?loadFromStorage(“doer_yearData”):null);ayd[y]=saved?rehydrateYearData(saved,y,initSelfHabitIds):buildYearData(y,initSelfHabitIds);});
 Object.values(ayd).forEach(yd=>{Object.values(yd).forEach(day=>{if(day&&day.toxins){day.toxins=day.toxins.filter(t=>{if(!t.includes(”||”))return false;return t.split(”||”).length>=3;});}});});
-const savedCats=loadFromStorage(“doer_activeCategories”);
-return{isDark:loadFromStorage(“doer_isDark”)!==null?loadFromStorage(“doer_isDark”):true,allYearsData:ayd,practice:loadFromStorage(“doer_practice”)||DEFAULT_PRACTICE,selfHabitIds:initSelfHabitIds,selfHabitSchedule:loadFromStorage(“doer_selfHabitSchedule”)||{},recurringReminders:loadFromStorage(“doer_recurring”)||[],addictions:loadFromStorage(“doer_addictions”)||[],everyTasks:loadFromStorage(“doer_everyTasks”)||[],workoutSchedule:loadFromStorage(“doer_workoutSchedule”)||[],lastStreakDate:loadFromStorage(“doer_lastStreakDate”)||””,activeCategories:savedCats||ALL_CATS};
+return{isDark:loadFromStorage(“doer_isDark”)!==null?loadFromStorage(“doer_isDark”):true,allYearsData:ayd,practice:loadFromStorage(“doer_practice”)||DEFAULT_PRACTICE,selfHabitIds:initSelfHabitIds,selfHabitSchedule:loadFromStorage(“doer_selfHabitSchedule”)||{},recurringReminders:loadFromStorage(“doer_recurring”)||[],addictions:loadFromStorage(“doer_addictions”)||[],everyTasks:loadFromStorage(“doer_everyTasks”)||[],workoutSchedule:loadFromStorage(“doer_workoutSchedule”)||[],lastStreakDate:loadFromStorage(“doer_lastStreakDate”)||””};
 }
 function rehydrateYearData(raw,yr=CURRENT_YEAR,habitIds=DEFAULT_SELF_HABITS){
 const base=buildYearData(yr,habitIds);const out={…base};
@@ -390,7 +364,7 @@ CE(“div”,{style:{position:“absolute”,bottom:32,fontSize:8,letterSpacing:
 // ══════════════════════════════════════
 const STATS_CSS = `.doer-overlay{position:fixed;inset:0;z-index:500;background:#0f0d0b;font-family:'Cormorant Garamond',Georgia,serif;color:#f0ece4;overflow-y:auto;-webkit-overflow-scrolling:touch;} .doer-overlay *{box-sizing:border-box;} .do-eyebrow{font-family:'Cinzel',serif;font-size:9px;letter-spacing:6px;color:rgba(200,169,110,0.45);text-align:center;margin-bottom:8px;} .do-card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:18px 16px 14px;margin-bottom:12px;} .do-card-title{font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;color:rgba(255,255,255,0.25);} .do-card-sub{font-size:10px;font-style:italic;color:rgba(255,255,255,0.2);margin-top:3px;} .do-ptabs{display:flex;gap:4px;background:rgba(255,255,255,0.03);border-radius:30px;padding:4px;margin-bottom:16px;} .do-ptab{flex:1;padding:8px 2px;border-radius:24px;border:1px solid transparent;cursor:pointer;font-family:'Cinzel',serif;font-size:7px;letter-spacing:1px;background:transparent;color:rgba(255,255,255,0.28);transition:all 0.25s;} .do-ptab.active{background:rgba(200,169,110,0.15);color:#c8a96e;border-color:rgba(200,169,110,0.3);} .do-pnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;} .do-pnav-btn{background:none;border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:rgba(255,255,255,0.35);cursor:pointer;font-size:18px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;} .do-pnav-btn:disabled{opacity:0.2;cursor:default;} .do-period-title{font-size:30px;font-weight:300;letter-spacing:1px;text-align:center;color:#f0ece4;} .do-period-sub{font-size:9px;letter-spacing:3px;color:rgba(255,255,255,0.25);text-align:center;margin-top:3px;} .do-score-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px;} .do-sc{border-radius:14px;padding:10px 4px;text-align:center;background:rgba(255,255,255,0.025);} .do-sc-icon{font-size:16px;margin-bottom:3px;} .do-sc-num{font-size:20px;font-weight:600;line-height:1;} .do-sc-lbl{font-size:7px;letter-spacing:1px;color:rgba(255,255,255,0.25);margin-top:2px;} .do-sc-delta{font-size:8px;font-style:italic;margin-top:2px;} .do-sk-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;} .do-sk-card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;} .do-sk-num{font-size:30px;font-weight:600;line-height:1;} .do-sk-name{font-size:11px;color:rgba(255,255,255,0.55);} .do-sk-sub{font-size:7px;letter-spacing:1.5px;color:rgba(255,255,255,0.22);margin-top:2px;} .do-gap-banner{border-radius:16px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;} .do-tabs{display:flex;gap:4px;background:rgba(255,255,255,0.03);border-radius:30px;padding:4px;margin-bottom:16px;} .do-tab{flex:1;padding:8px 2px;border-radius:24px;border:1px solid transparent;cursor:pointer;font-family:'Cinzel',serif;font-size:7px;letter-spacing:1px;background:transparent;color:rgba(255,255,255,0.28);transition:all 0.25s;} .do-tab.active{background:rgba(200,169,110,0.15);color:#c8a96e;border-color:rgba(200,169,110,0.3);} .do-stats3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;} .do-stat{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px 6px;text-align:center;} .do-stat-num{font-size:24px;font-weight:600;line-height:1;margin-bottom:2px;} .do-stat-lbl{font-size:7px;letter-spacing:1.5px;color:rgba(255,255,255,0.22);line-height:1.5;} .do-conv-track{width:100%;height:10px;background:rgba(255,255,255,0.05);border-radius:5px;overflow:hidden;position:relative;margin-bottom:8px;} .do-conv-fill{height:100%;border-radius:5px;transition:width 0.8s cubic-bezier(0.16,1,0.3,1);} .do-conv-pct{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-family:'Cinzel',serif;font-size:8px;font-weight:600;} .do-conv-row{display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.2);font-style:italic;} .do-quote{border-radius:18px;padding:18px;background:rgba(200,169,110,0.06);border:1px solid rgba(200,169,110,0.15);text-align:center;} .do-quote-text{font-size:14px;font-style:italic;color:rgba(255,255,255,0.5);line-height:1.85;} .do-quote-sub{font-family:'Cinzel',serif;font-size:8px;letter-spacing:3px;color:rgba(200,169,110,0.3);margin-top:8px;} .do-bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(6,4,2,0.96);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,0.07);display:flex;padding:10px 0 28px;z-index:501;} .do-nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;padding:8px 4px;} .do-nav-icon{font-size:18px;line-height:1;} .do-nav-label{font-family:'Cinzel',serif;font-size:7px;letter-spacing:1.5px;color:rgba(255,255,255,0.3);transition:color 0.2s;} .do-nav-btn.active .do-nav-label{color:#c8a96e;} .do-nav-dot{width:4px;height:4px;border-radius:50%;background:#c8a96e;margin:2px auto 0;opacity:0;transition:opacity 0.2s;} .do-nav-btn.active .do-nav-dot{opacity:1;} .do-close-btn{position:fixed;top:14px;right:16px;z-index:502;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(255,255,255,0.5);font-size:18px;line-height:1;} .do-dp-input{flex:1;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#f0ece4;font-family:'Georgia',serif;font-size:14px;padding:7px 10px;outline:none;} .do-dp-btn{width:100%;background:rgba(200,169,110,0.15);border:1px solid rgba(200,169,110,0.35);border-radius:10px;color:#c8a96e;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;padding:10px;margin-top:4px;} .do-cmp-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;} .do-cmp-lbl{font-size:10px;color:rgba(255,255,255,0.38);width:88px;flex-shrink:0;} .do-cmp-track{flex:1;height:5px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;} .do-cmp-fill{height:100%;border-radius:3px;} .do-cmp-val{font-size:10px;width:34px;text-align:right;flex-shrink:0;} .do-empty{text-align:center;padding:60px 20px;color:rgba(255,255,255,0.25);font-size:14px;font-style:italic;line-height:1.8;}`;
 
-function StatsOverlay({onClose,allYearsData,practice,everyTasks,selfHabitSchedule,addictions,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,CAT,activeCategories}){
+function StatsOverlay({onClose,allYearsData,practice,everyTasks,selfHabitSchedule,addictions,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,CAT}){
 const CE=React.createElement;
 const[screen,setScreen]=React.useState(“progress”);
 const[styleInjected,setStyleInjected]=React.useState(false);
@@ -424,7 +398,7 @@ CE(“div”,{className:“do-close-btn”,onClick:onClose},”\u00D7”),
 CE(“div”,{style:{paddingBottom:80}},
 screen===“progress”
 ?CE(ProgressScreen,{allDays,firstLog,allYearsData,practice,everyTasks,selfHabitSchedule,addictions,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,CAT})
-:CE(IdentityScreen,{allDays,practice,everyTasks,selfHabitSchedule,CAT,activeCategories})
+:CE(IdentityScreen,{allDays,practice,everyTasks,selfHabitSchedule,CAT})
 ),
 // Bottom nav
 CE(“div”,{className:“do-bottom-nav”},
@@ -656,7 +630,7 @@ overall>=bestOverall&&bestOverall>0?“This is your personal best period. Keep g
 );
 }
 
-function IdentityScreen({allDays,practice,everyTasks,selfHabitSchedule,CAT,activeCategories}){
+function IdentityScreen({allDays,practice,everyTasks,selfHabitSchedule,CAT}){
 const CE=React.createElement;
 const[pType,setPType]=React.useState(“month”);
 const[showCustom,setShowCustom]=React.useState(false);
@@ -821,8 +795,6 @@ const[showIntro,setShowIntro]=useState(true);
 const[showStats,setShowStats]=useState(false);
 const[isDark,setIsDark]=useState(initialData.isDark);
 const[view,setView]=useState(“day”);
-const[activeCategories,setActiveCategories]=useState(initialData.activeCategories||ALL_CATS);
-function saveActiveCategories(cats){setActiveCategories(cats);saveToStorage(“doer_activeCategories”,cats);}
 const[allYearsData,setAllYearsData]=useState(initialData.allYearsData);
 const[selectedKey,setSelKey]=useState(dateKey(today));
 const[viewMonth,setViewMonth]=useState(today.getMonth());
@@ -884,7 +856,7 @@ setAddictions(prev=>{const updated=prev.map(a=>({…a,streak:a.lastSlip===ys?0:(
 }
 },[]);
 const[everyTasks,setEveryTasks]=useState(initialData.everyTasks);
-const score=getDayScore(day,practice,everyTasks,selfHabitSchedule,activeCategories,addictions);
+const score=getDayScore(day,practice,everyTasks,selfHabitSchedule);
 function saveEveryTasks(tasks){setEveryTasks(tasks);saveToStorage(“doer_everyTasks”,tasks);}
 function saveWorkoutSchedule(schedule){
 setWorkoutSchedule(schedule);saveToStorage(“doer_workoutSchedule”,schedule);
@@ -970,7 +942,7 @@ CE(“div”,{style:{position:“absolute”,inset:0,display:“flex”,alignIte
 if(view===“day”){
 const keys=Object.values(allYearsData).flatMap(yd=>Object.keys(yd)).sort();const idx=keys.indexOf(selectedKey);
 const swipe=handleSwipe(()=>{if(idx<keys.length-1)openDay(keys[idx+1]);},()=>{if(idx>0)openDay(keys[idx-1]);});
-return CE(“div”,{…swipe},CE(DayView,{day,score,T,practice,tog,togF,togWorkout,togMeal,updateDay,updateWorkoutField,updMeal,onOpenFitness:()=>setShowFitnessDrawer(true),onOpenWork:()=>setShowWorkDrawer(true),everyTasks,togEveryTask,addTodayTask,togTodayTask,remTodayTask,addictions,logSlip,addAddiction,removeAddiction,renameAddiction,onOpenSelf:()=>setShowSelfDrawer(true),togSelf,updateSelfField,selfHabitSchedule,onOpenPicker:()=>setShowPicker(true),recurringReminders,saveRecurring,updateNote,addPlan,togPlan,delPlan,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,mealStreak,workoutSchedule,activeCategories,saveActiveCategories}));
+return CE(“div”,{…swipe},CE(DayView,{day,score,T,practice,tog,togF,togWorkout,togMeal,updateDay,updateWorkoutField,updMeal,onOpenFitness:()=>setShowFitnessDrawer(true),onOpenWork:()=>setShowWorkDrawer(true),everyTasks,togEveryTask,addTodayTask,togTodayTask,remTodayTask,addictions,logSlip,addAddiction,removeAddiction,renameAddiction,onOpenSelf:()=>setShowSelfDrawer(true),togSelf,updateSelfField,selfHabitSchedule,onOpenPicker:()=>setShowPicker(true),recurringReminders,saveRecurring,updateNote,addPlan,togPlan,delPlan,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,mealStreak,workoutSchedule}));
 }
 if(view===“month”){
 const swipe=handleSwipe(()=>{if(viewMonth===11){setViewMonth(0);setViewYear(y=>Math.min(CURRENT_YEAR+5,y+1));}else setViewMonth(m=>m+1);},()=>{if(viewMonth===0){setViewMonth(11);setViewYear(y=>y-1);}else setViewMonth(m=>m-1);});
@@ -981,73 +953,24 @@ const swipe=handleSwipe(()=>setViewYear(y=>Math.min(CURRENT_YEAR+5,y+1)),()=>set
 return CE(“div”,{…swipe},CE(YearView,{yearData,addictions,everyTasks,selfHabitSchedule,onOpenDay:openDay,onOpenMonth:m=>{setViewMonth(m);setView(“month”);},T,practice,viewYear,setViewYear,recurringReminders}));
 }
 })(),
-showStats&&CE(StatsOverlay,{onClose:()=>setShowStats(false),allYearsData,practice,everyTasks,selfHabitSchedule,addictions,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,CAT,activeCategories}),
+showStats&&CE(StatsOverlay,{onClose:()=>setShowStats(false),allYearsData,practice,everyTasks,selfHabitSchedule,addictions,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,CAT}),
 showPicker&&CE(PracticePicker,{practice,onSave:handleSavePractice,onClose:()=>setShowPicker(false),T}),
 showFitnessDrawer&&day&&CE(FitnessDrawer,{day,onClose:()=>setShowFitnessDrawer(false),addMeal,workoutSchedule,saveWorkoutSchedule,T}),
 showSelfDrawer&&CE(SelfDrawer,{selfHabitIds,selfHabitSchedule,onSave:saveSelfHabits,onClose:()=>setShowSelfDrawer(false),T}),
 showWorkDrawer&&CE(WorkDrawer,{everyTasks,todayTasks:day?.todayTasks||[],onSave:(every,todayList)=>{saveEveryTasks(every);updateDay(d=>({…d,todayTasks:todayList}));},onClose:()=>setShowWorkDrawer(false),T})
 );
 }
-function CategorySettingsDrawer({activeCategories,saveActiveCategories,T,onClose}){
-const CE=React.createElement;
-const ac=activeCategories||ALL_CATS;
-const CATS=[
-{id:“fitness”, icon:”\uD83C\uDFCB\uFE0F”, label:“FITNESS”,    color:”#c8a96e”, sub:“workouts & meals”},
-{id:“faith”,   icon:”\uD83C\uDF19”,         label:“FAITH”,      color:”#7eb8c9”, sub:“daily rituals”},
-{id:“work”,    icon:”\uD83D\uDCBC”,          label:“WORK”,       color:”#a78bfa”, sub:“tasks & deep work”},
-{id:“self”,    icon:”\u2728”,                 label:“SELF”,       color:”#6ee7b7”, sub:“habits that matter”},
-{id:“discipline”,icon:”\uD83D\uDCAA”,        label:“DISCIPLINE”, color:”#f87171”, sub:“releasing habits”},
-];
-function toggle(id){
-const next=ac.includes(id)?ac.filter(x=>x!==id):[…ac,id];
-saveActiveCategories(next);
-}
-return CE(“div”,{style:{position:“fixed”,inset:0,zIndex:500,background:“rgba(0,0,0,0.6)”,display:“flex”,alignItems:“flex-end”},onClick:onClose},
-CE(“div”,{style:{background:”#0f0d0b”,borderRadius:“20px 20px 0 0”,width:“100%”,maxWidth:480,padding:“20px 18px 44px”,border:“1px solid rgba(255,255,255,0.07)”},onClick:e=>e.stopPropagation()},
-CE(“div”,{style:{display:“flex”,justifyContent:“center”,marginBottom:14}},
-CE(“div”,{style:{width:36,height:4,borderRadius:2,background:“rgba(255,255,255,0.15)”}})
-),
-CE(“div”,{style:{display:“flex”,justifyContent:“space-between”,alignItems:“center”,marginBottom:6}},
-CE(“span”,{style:{fontSize:11,letterSpacing:3,color:T.text,fontWeight:“bold”}},“ACTIVE CATEGORIES”),
-CE(“button”,{onClick:onClose,style:{background:“none”,border:“none”,color:T.sub,fontSize:20,cursor:“pointer”}},“×”)
-),
-CE(“div”,{style:{fontSize:10,color:“rgba(255,255,255,0.25)”,letterSpacing:0.5,marginBottom:16,lineHeight:1.6}},“Only active categories count toward your daily score and streak. Your history is always kept.”),
-CATS.map(c=>{
-const on=ac.includes(c.id);
-return CE(“div”,{
-key:c.id,onClick:()=>toggle(c.id),
-style:{display:“flex”,alignItems:“center”,gap:12,background:on?“rgba(255,255,255,0.04)”:“rgba(255,255,255,0.01)”,border:“1px solid “+(on?c.color+“44”:“rgba(255,255,255,0.05)”),borderRadius:10,padding:“10px 14px”,marginBottom:6,cursor:“pointer”,transition:“all 0.2s”,opacity:on?1:0.4}
-},
-CE(“span”,{style:{fontSize:18,flexShrink:0}},c.icon),
-CE(“div”,{style:{flex:1}},
-CE(“div”,{style:{fontSize:10,fontWeight:“bold”,color:on?c.color:“rgba(255,255,255,0.3)”,letterSpacing:2}},c.label),
-CE(“div”,{style:{fontSize:9,color:“rgba(255,255,255,0.22)”,marginTop:1}},c.sub)
-),
-CE(“div”,{style:{width:24,height:24,borderRadius:“50%”,flexShrink:0,background:on?c.color+“22”:“transparent”,border:“2px solid “+(on?c.color:“rgba(255,255,255,0.15)”),display:“flex”,alignItems:“center”,justifyContent:“center”,fontSize:12,color:c.color}},on?”\u2713”:””)
-);
-}),
-ac.length===0&&CE(“div”,{style:{fontSize:10,color:”#f87171”,textAlign:“center”,marginTop:8,letterSpacing:0.5}},“Select at least one category, or use DOER for notes only.”)
-)
-);
-}
-function DayView({day,score,T,practice,tog,togF,togWorkout,togMeal,updateDay,updateWorkoutField,updMeal,onOpenFitness,onOpenWork,everyTasks,togEveryTask,addTodayTask,togTodayTask,remTodayTask,addictions,logSlip,addAddiction,removeAddiction,renameAddiction,onOpenSelf,togSelf,updateSelfField,selfHabitSchedule,onOpenPicker,recurringReminders,saveRecurring,updateNote,addPlan,togPlan,delPlan,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,mealStreak,workoutSchedule,activeCategories,saveActiveCategories}){
+function DayView({day,score,T,practice,tog,togF,togWorkout,togMeal,updateDay,updateWorkoutField,updMeal,onOpenFitness,onOpenWork,everyTasks,togEveryTask,addTodayTask,togTodayTask,remTodayTask,addictions,logSlip,addAddiction,removeAddiction,renameAddiction,onOpenSelf,togSelf,updateSelfField,selfHabitSchedule,onOpenPicker,recurringReminders,saveRecurring,updateNote,addPlan,togPlan,delPlan,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,mealStreak,workoutSchedule}){
 if(!day)return null;
 const{CAT}=T;const ramzan=practice.id===“islam”&&isRamzan(day.date);const d=day.date;
-const[showNR,setShowNR]=useState(false);const[showCatSettings,setShowCatSettings]=useState(false);const isFuture=dateKey(d)>dateKey(today);const CE=React.createElement;const ac=activeCategories||ALL_CATS;
+const[showNR,setShowNR]=useState(false);const isFuture=dateKey(d)>dateKey(today);const CE=React.createElement;
 return CE(“div”,{style:{padding:“0 0 80px 0”}},
 CE(“div”,{style:{padding:“20px 20px 14px”,borderBottom:`1px solid ${T.border}`}},
 CE(“div”,{style:{display:“flex”,justifyContent:“space-between”,alignItems:“flex-end”}},
 CE(“div”,null,
 CE(“div”,{style:{fontSize:11,letterSpacing:4,color:T.sub}},DAY_NAMES[d.getDay()].toUpperCase()),
 CE(“div”,{style:{fontSize:52,fontWeight:“bold”,lineHeight:1,letterSpacing:-1,marginTop:2}},d.getDate()),
-CE(“div”,{style:{display:“flex”,alignItems:“center”,gap:8,marginTop:2}},
-CE(“div”,{style:{fontSize:11,letterSpacing:3,color:T.sub}},MONTH_NAMES[d.getMonth()].toUpperCase(),” \xB7 “,d.getFullYear()),
-CE(“button”,{onClick:()=>setShowCatSettings(true),title:“Manage categories”,style:{background:“none”,border:“none”,cursor:“pointer”,padding:“4px 2px”,display:“flex”,flexDirection:“column”,gap:“3px”}},
-CE(“span”,{style:{display:“block”,width:16,height:1,background:“rgba(255,255,255,0.28)”}}),
-CE(“span”,{style:{display:“block”,width:10,height:1,background:“rgba(255,255,255,0.28)”}}),
-CE(“span”,{style:{display:“block”,width:16,height:1,background:“rgba(255,255,255,0.28)”}})
-)
-)
+CE(“div”,{style:{fontSize:11,letterSpacing:3,color:T.sub,marginTop:2}},MONTH_NAMES[d.getMonth()].toUpperCase(),” \xB7 “,d.getFullYear())
 ),
 CE(“div”,{style:{textAlign:“right”}},
 !isFuture&&(day.toxins||[]).filter(t=>t.includes(”||”)).length>0&&CE(“div”,{style:{fontSize:11,color:CAT.toxins.color,letterSpacing:1}},(day.toxins||[]).filter(t=>t.includes(”||”)).length,” slips”),
@@ -1065,20 +988,19 @@ isFuture?CE(React.Fragment,null,
 CE(“div”,{style:{textAlign:“center”,padding:“24px 16px 16px”,color:T.sub,fontSize:10,letterSpacing:2,opacity:0.4}},“HABIT TRACKING UNLOCKS ON THIS DAY”),
 CE(NotesRemindersPanel,{day,onOpen:()=>setShowNR(true),recurringReminders,T})
 ):CE(React.Fragment,null,
-(ac.includes(“fitness”)||ac.includes(“faith”))&&CE(“div”,{style:{display:“grid”,gridTemplateColumns:ac.includes(“fitness”)&&ac.includes(“faith”)?“1fr 1fr”:ac.includes(“fitness”)||ac.includes(“faith”)?“1fr”:“none”,gap:8,marginBottom:8}},
-ac.includes(“fitness”)&&CE(“div”,{id:“doer-panel-fitness”},CE(FitnessPanelClean,{day,onOpenFitness,togWorkout,togMeal,updateWorkoutField,updMeal,onDeleteMeal:id=>updateDay(d2=>({…d2,meals:d2.meals.filter(m=>m.id!==id)})),T,streak:fitnessStreak,mealStreak,workoutSchedule})),
-ac.includes(“faith”)&&CE(“div”,{id:“doer-panel-faith”},CE(FaithPanel,{day,practice,ramzan,togF,tog,onOpenPicker,T,streak:faithStreak}))
+CE(“div”,{style:{display:“grid”,gridTemplateColumns:“1fr 1fr”,gap:8,marginBottom:8}},
+CE(“div”,{id:“doer-panel-fitness”},CE(FitnessPanelClean,{day,onOpenFitness,togWorkout,togMeal,updateWorkoutField,updMeal,onDeleteMeal:id=>updateDay(d2=>({…d2,meals:d2.meals.filter(m=>m.id!==id)})),T,streak:fitnessStreak,mealStreak,workoutSchedule})),
+CE(“div”,{id:“doer-panel-faith”},CE(FaithPanel,{day,practice,ramzan,togF,tog,onOpenPicker,T,streak:faithStreak}))
 ),
-(ac.includes(“work”)||ac.includes(“self”))&&CE(“div”,{style:{display:“grid”,gridTemplateColumns:ac.includes(“work”)&&ac.includes(“self”)?“1fr 1fr”:“1fr”,gap:8,marginBottom:8,minWidth:0}},
-ac.includes(“work”)&&CE(“div”,{id:“doer-panel-work”},CE(WorkPanel,{day,onOpenWork,everyTasks,togEveryTask,addTodayTask,togTodayTask,remTodayTask,T,streak:workStreak})),
-ac.includes(“self”)&&CE(“div”,{id:“doer-panel-self”},CE(SelfPanel,{day,onOpenSelf,togSelf,updateSelfField,selfHabitSchedule,T,streak:selfStreak}))
+CE(“div”,{style:{display:“grid”,gridTemplateColumns:“1fr 1fr”,gap:8,marginBottom:8,minWidth:0}},
+CE(“div”,{id:“doer-panel-work”},CE(WorkPanel,{day,onOpenWork,everyTasks,togEveryTask,addTodayTask,togTodayTask,remTodayTask,T,streak:workStreak})),
+CE(“div”,{id:“doer-panel-self”},CE(SelfPanel,{day,onOpenSelf,togSelf,updateSelfField,selfHabitSchedule,T,streak:selfStreak}))
 ),
-ac.includes(“discipline”)&&CE(“div”,{id:“doer-panel-discipline”},CE(DisciplinePanel,{addictions,day,logSlip,addAddiction,removeAddiction,renameAddiction,T,streak:disciplineStreak})),
+CE(“div”,{id:“doer-panel-discipline”},CE(DisciplinePanel,{addictions,day,logSlip,addAddiction,removeAddiction,renameAddiction,T,streak:disciplineStreak})),
 CE(NotesRemindersPanel,{day,onOpen:()=>setShowNR(true),recurringReminders,T})
 )
 ),
-showNR&&CE(NotesRemindersDrawer,{day,recurringReminders,saveRecurring,updateNote,addPlan,togPlan,delPlan,onClose:()=>setShowNR(false),T}),
-showCatSettings&&CE(CategorySettingsDrawer,{activeCategories:ac,saveActiveCategories,T,onClose:()=>setShowCatSettings(false)})
+showNR&&CE(NotesRemindersDrawer,{day,recurringReminders,saveRecurring,updateNote,addPlan,togPlan,delPlan,onClose:()=>setShowNR(false),T})
 );
 }
 function NotesRemindersPanel({day,onOpen,recurringReminders,T}){
@@ -1719,71 +1641,31 @@ CE(“div”,{style:{fontSize:8,color:“rgba(255,255,255,0.11)”,textAlign:“
 )
 );
 }
-function WelcomeStep({name,activeCats,setActiveCats}){
-const CE=React.createElement;
-const gold=”#c8a96e”;
-const CATS=[
-{id:“fitness”, icon:”\uD83C\uDFCB\uFE0F”, label:“FITNESS”,    color:”#c8a96e”, sub:“workouts & meals”},
-{id:“faith”,   icon:”\uD83C\uDF19”,         label:“FAITH”,      color:”#7eb8c9”, sub:“your daily practice”},
-{id:“work”,    icon:”\uD83D\uDCBC”,          label:“WORK”,       color:”#a78bfa”, sub:“tasks & deep work”},
-{id:“self”,    icon:”\u2728”,                 label:“SELF”,       color:”#6ee7b7”, sub:“habits that matter”},
-{id:“discipline”,icon:”\uD83D\uDCAA”,        label:“DISCIPLINE”, color:”#f87171”, sub:“releasing what holds you back”},
-];
-function toggle(id){setActiveCats(p=>p.includes(id)?p.filter(x=>x!==id):[…p,id]);}
-return CE(“div”,{style:{textAlign:“center”,padding:“4px 0”}},
-CE(“div”,{style:{fontSize:44,marginBottom:14}},”\uD83D\uDC4B”),
-CE(“div”,{style:{fontSize:26,fontWeight:“bold”,color:”#f0ece4”,letterSpacing:1,marginBottom:6}},“Welcome, “+name),
-CE(“div”,{style:{fontSize:11,color:“rgba(255,255,255,0.35)”,lineHeight:1.8,marginBottom:6,letterSpacing:0.5}},“Tap to choose what you want to track.”),
-CE(“div”,{style:{fontSize:9,color:“rgba(255,255,255,0.2)”,marginBottom:18,letterSpacing:1}},“Only active categories count toward your daily score.”),
-CATS.map(c=>{
-const on=activeCats.includes(c.id);
-return CE(“div”,{
-key:c.id,
-onClick:()=>toggle(c.id),
-style:{
-display:“flex”,alignItems:“center”,gap:12,
-background:on?“rgba(255,255,255,0.05)”:“rgba(255,255,255,0.02)”,
-border:“1px solid “+(on?c.color+“55”:“rgba(255,255,255,0.05)”),
-borderRadius:10,padding:“10px 14px”,marginBottom:6,
-textAlign:“left”,cursor:“pointer”,transition:“all 0.2s”,
-opacity:on?1:0.45,
-}
-},
-CE(“span”,{style:{fontSize:18,flexShrink:0}},c.icon),
-CE(“div”,{style:{flex:1}},
-CE(“div”,{style:{fontSize:10,fontWeight:“bold”,color:on?c.color:“rgba(255,255,255,0.35)”,letterSpacing:2,transition:“color 0.2s”}},c.label),
-CE(“div”,{style:{fontSize:9,color:“rgba(255,255,255,0.25)”,marginTop:1}},c.sub)
-),
-CE(“div”,{style:{
-width:20,height:20,borderRadius:“50%”,flexShrink:0,
-background:on?c.color+“22”:“transparent”,
-border:“2px solid “+(on?c.color:“rgba(255,255,255,0.15)”),
-display:“flex”,alignItems:“center”,justifyContent:“center”,
-fontSize:11,color:c.color,transition:“all 0.2s”,
-}},on?”\u2713”:””)
-);
-}),
-CE(“div”,{style:{fontSize:9,color:“rgba(255,255,255,0.2)”,marginTop:10,letterSpacing:1}},
-activeCats.length===0?“Select at least one category”:activeCats.length+” categor”+(activeCats.length===1?“y”:“ies”)+” active”
-)
-);
-}
 function OnboardingFlow({user,onDone}){
 const[step,setStep]=useState(0);
 const[prac,setPrac]=useState(DEFAULT_PRACTICE);
 const[sids,setSids]=useState(DEFAULT_SELF_HABITS);
 const[adds,setAdds]=useState([]);
 const[newA,setNewA]=useState(””);
-const[activeCats,setActiveCats]=useState(ALL_CATS);
 const CE=React.createElement;
 const gold=”#c8a96e”;const fc=”#7eb8c9”;const sc=”#6ee7b7”;const dc=”#f87171”;const N=5;
-function next(){if(step<N-1)setStep(s=>s+1);else onDone(prac,sids,{},[],adds,activeCats);}
+function next(){if(step<N-1)setStep(s=>s+1);else onDone(prac,sids,{},[],adds);}
 function back(){if(step>0)setStep(s=>s-1);}
 const dots=CE(“div”,{style:{display:“flex”,gap:6,justifyContent:“center”,padding:“16px 0 2px”}},
 Array.from({length:N},(*,i)=>CE(“div”,{key:i,style:{width:i===step?20:6,height:6,borderRadius:3,background:i===step?gold:i<step?“rgba(200,169,110,0.4)”:“rgba(255,255,255,0.1)”,transition:“all 0.3s”}}))
 );
 const panels=[
-CE(WelcomeStep,{name:user.name.split(” “)[0],activeCats,setActiveCats}),
+CE(“div”,{style:{textAlign:“center”,padding:“4px 0”}},
+CE(“div”,{style:{fontSize:44,marginBottom:14}},”\uD83D\uDC4B”),
+CE(“div”,{style:{fontSize:26,fontWeight:“bold”,color:”#f0ece4”,letterSpacing:1,marginBottom:8}},“Welcome, “+user.name.split(” “)[0]),
+CE(“div”,{style:{fontSize:11,color:“rgba(255,255,255,0.35)”,lineHeight:1.9,marginBottom:20,letterSpacing:0.5}},“DOER is your personal habit calendar.\nTrack everything that matters, every day.”),
+[[“FITNESS”,”\uD83C\uDFCB\uFE0F”,”#c8a96e”,“log workouts & meals”],[“FAITH”,”\uD83C\uDF19”,”#7eb8c9”,“your daily practice”],[“WORK”,”\uD83D\uDCBC”,”#a78bfa”,“tasks & deep work”],[“SELF”,”\u2728”,”#6ee7b7”,“habits that matter”],[“DISCIPLINE”,”\uD83D\uDCAA”,”#f87171”,“releasing what holds you back”]].map(([lbl,icon,c,sub])=>
+CE(“div”,{key:lbl,style:{display:“flex”,alignItems:“center”,gap:12,background:“rgba(255,255,255,0.03)”,border:“1px solid rgba(255,255,255,0.05)”,borderRadius:10,padding:“10px 14px”,marginBottom:6,textAlign:“left”}},
+CE(“span”,{style:{fontSize:18,flexShrink:0}},icon),
+CE(“div”,null,CE(“div”,{style:{fontSize:10,fontWeight:“bold”,color:c,letterSpacing:2}},lbl),CE(“div”,{style:{fontSize:9,color:“rgba(255,255,255,0.28)”,marginTop:1}},sub))
+)
+)
+),
 CE(“div”,null,
 CE(“div”,{style:{fontSize:10,letterSpacing:3,color:fc,marginBottom:5}},“STEP 1 OF 3”),
 CE(“div”,{style:{fontSize:22,fontWeight:“bold”,color:”#f0ece4”,marginBottom:4}},“Your Faith Practice”),
@@ -1848,7 +1730,7 @@ CE(“button”,{onClick:next,style:{flex:2,background:“rgba(200,169,110,0.18)
 )
 );
 }
-function TooltipLayer({onDone,activeCategories}){
+function TooltipLayer({onDone}){
 const[step,setStep]=useState(0);
 const[rects,setRects]=useState({});
 const CE=React.createElement;
@@ -1884,8 +1766,7 @@ setRects(r);
 return()=>clearTimeout(t);
 },[]);
 
-const activeTips=tips.filter(t=>!activeCategories||activeCategories.includes(t.panel));
-const tip=activeTips[step]||tips[0];
+const tip=tips[step];
 const rect=rects[tip.panel];
 
 function next(){
@@ -1936,7 +1817,7 @@ CE(“div”,{style:{position:“absolute”,inset:0,background:“rgba(0,0,0,0.
 CE(“div”,{style:{…cardStyle,pointerEvents:“all”},onClick:e=>e.stopPropagation()},
 // Progress dots
 CE(“div”,{style:{display:“flex”,gap:3,justifyContent:“center”,marginBottom:6}},
-activeTips.map((_,i)=>CE(“div”,{key:i,style:{
+tips.map((_,i)=>CE(“div”,{key:i,style:{
 width:i===step?12:3,height:3,borderRadius:2,
 background:i===step?tip.color:i<step?tip.color+“55”:“rgba(255,255,255,0.1)”,
 transition:“all 0.3s”
@@ -1980,12 +1861,11 @@ const[cu,setCu]=useState(()=>getCurrentUser());
 const[ob,setOb]=useState(()=>{const u=getCurrentUser();return u?hasCompletedOnboarding(u.id):false;});
 const[tips,setTips]=useState(false);
 function handleAuth(user){setCu(user);setOb(hasCompletedOnboarding(user.id));}
-function handleDone(prac,sids,sched,ws,adds,activeCats){
+function handleDone(prac,sids,sched,ws,adds){
 saveToStorage(“doer_practice”,prac);
 saveToStorage(“doer_selfHabitIds”,sids);
 saveToStorage(“doer_selfHabitSchedule”,sched);
 saveToStorage(“doer_addictions”,adds);
-if(activeCats)saveToStorage(“doer_activeCategories”,activeCats);
 markOnboardingDone(cu.id);
 setOb(true);
 if(!hasSeenTooltips(cu.id))setTips(true);
@@ -1994,7 +1874,7 @@ function handleSignOut(){doSignOut();setCu(null);setOb(false);setTips(false);}
 if(!cu)return React.createElement(AuthScreen,{onAuth:handleAuth,onReset:()=>doFullReset()});
 if(!ob)return React.createElement(OnboardingFlow,{user:cu,onDone:handleDone});
 return React.createElement(React.Fragment,null,
-tips&&React.createElement(TooltipLayer,{onDone:()=>{markTooltipsSeen(cu.id);setTips(false);},activeCategories:loadFromStorage(‘doer_activeCategories’)||ALL_CATS}),
+tips&&React.createElement(TooltipLayer,{onDone:()=>{markTooltipsSeen(cu.id);setTips(false);}}),
 React.createElement(App,{initialData,currentUser:cu,onSignOut:handleSignOut})
 );
 }
