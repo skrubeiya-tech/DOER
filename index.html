@@ -7,7 +7,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <title>DOER</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Cinzel:wght@400;600&display=swap" rel="stylesheet"><style>*{box-sizing:border-box}body{margin:0;padding:0;background:#000}input,textarea,select{font-size:16px!important;-webkit-user-select:text!important;user-select:text!important}input::placeholder,textarea::placeholder{opacity:0.3!important;color:inherit}</style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Cinzel:wght@400;600&display=swap" rel="stylesheet">
+  <style>*{box-sizing:border-box}body{margin:0;padding:0;background:#000}input,textarea,select{font-size:16px!important;-webkit-user-select:text!important;user-select:text!important}input::placeholder,textarea::placeholder{opacity:0.3!important;color:inherit}</style>
 </head>
 <body>
   <div id="root"></div>
@@ -21,7 +23,7 @@ const DAY_NAMES=[“Sunday”,“Monday”,“Tuesday”,“Wednesday”,“Thur
 const DAY_SHORT=[“Sun”,“Mon”,“Tue”,“Wed”,“Thu”,“Fri”,“Sat”];
 const MONTH_NAMES=[“January”,“February”,“March”,“April”,“May”,“June”,“July”,“August”,“September”,“October”,“November”,“December”];
 const today=new Date();const CURRENT_YEAR=today.getFullYear();
-const RAMZAN_START=new Date(CURRENT_YEAR,2,1);const RAMZAN_END=new Date(CURRENT_YEAR,2,30);
+const RAMZAN_START=new Date(CURRENT_YEAR,2,1);const RAMZAN_END=new Date(CURRENT_YEAR,2,29);
 function isRamzan(d){return d>=RAMZAN_START&&d<=RAMZAN_END;}
 function dayKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;}
 function dateKey(d){return dayKey(d);}
@@ -107,6 +109,7 @@ if(dy&&(dy.toxins||[]).filter(t=>t.includes(”||”)).length>0)break;past++;
 }
 return past+1;
 }
+
 const inp=(color,T)=>({WebkitAppearance:“none”,colorScheme:“dark”,background:T.isDark?“rgba(0,0,0,0.45)”:“rgba(255,255,255,0.85)”,border:`1px solid ${color}33`,borderRadius:6,color:T.text,fontFamily:”‘Georgia’,serif”,fontSize:16,padding:“6px 8px”,width:“100%”,boxSizing:“border-box”,outline:“none”});
 const ghost=(color,T)=>({width:“100%”,marginTop:4,background:“transparent”,border:`1px dashed ${color}${T.isDark?"33":"55"}`,borderRadius:6,color:`${color}${T.isDark?"66":"99"}`,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:10,padding:“5px”,letterSpacing:1});
 const WORKOUT_PRESETS=[
@@ -173,17 +176,41 @@ return map;
 }
 function makePlan(text=””,time=””){return{id:String(Date.now())+Math.random().toString(36).slice(2),text,time,done:false};}
 function makeRecurringPlan(text=””,time=””,freq=“daily”,days=[]){return{id:String(Date.now())+Math.random().toString(36).slice(2),text,time,freq,days};}
-function getDayScore(day,practice,everyTasks=[],selfHabitSchedule={}){
+const ALL_CATS=[“fitness”,“faith”,“work”,“self”,“discipline”];
+function getDayScore(day,practice,everyTasks=[],selfHabitSchedule={},activeCategories=ALL_CATS,addictions=null){
 if(!day)return 0;
+const ac=activeCategories||ALL_CATS;
 const dow=new Date(day.date).getDay();
 const everyDone=day.everyDone||[];const dk=dayKey(new Date(day.date));const freeze=getFreezeForDay(dk);
+const checks=[];
+if(ac.includes(“fitness”)){
+(day.workoutSessions||[]).forEach(s=>checks.push(s.done));
+(day.meals||[]).forEach(m=>checks.push(m.done));
+}
+if(ac.includes(“faith”)){
 const activeFaith=freeze?(day.faithItems||[]).slice(0,freeze.fromIndex):day.faithItems||[];
+activeFaith.forEach(f=>checks.push(f.done));
+}
+if(ac.includes(“work”)){
+everyTasks.forEach(t=>checks.push(everyDone.includes(t.id)));
+(day.todayTasks||[]).forEach(t=>checks.push(t.done));
+}
+if(ac.includes(“self”)){
 const activeSelf=(day.selfItems||[]).filter(s=>{
 const sched=selfHabitSchedule[s.habitId];
 return !sched||sched.length===0||sched.includes(dow);
 });
-const checks=[…(day.todayTasks||[]).map(t=>t.done),…everyTasks.map(t=>everyDone.includes(t.id)),…(day.workoutSessions||[]).map(s=>s.done),…activeFaith.map(f=>f.done),…day.meals.map(m=>m.done),…activeSelf.map(s=>s.done)];
-const done=checks.filter(Boolean).length;return checks.length===0?0:Math.round(done/checks.length*100);
+activeSelf.forEach(s=>checks.push(s.done));
+}
+if(ac.includes(“discipline”)){
+const hasTrackers=addictions&&addictions.length>0;
+if(hasTrackers){
+const hasSlip=(day.toxins||[]).filter(t=>t.includes(”||”)).length>0;
+checks.push(!hasSlip);
+}
+}
+const done=checks.filter(Boolean).length;
+return checks.length===0?0:Math.round(done/checks.length*100);
 }
 function getPageBgDark(day,practice){
 if(!day)return”#1a0f00”;const score=getDayScore(day,practice),tox=(day.toxins||[]).filter(t=>t.includes(”||”)).length,t=score/100;let r,g,b;
@@ -210,7 +237,8 @@ const yearKeys=[];for(let y=CURRENT_YEAR-10;y<=CURRENT_YEAR+5;y++)yearKeys.push(
 const ayd={};
 yearKeys.forEach(y=>{const saved=loadFromStorage(`doer_yearData_${y}`)||(y===CURRENT_YEAR?loadFromStorage(“doer_yearData”):null);ayd[y]=saved?rehydrateYearData(saved,y,initSelfHabitIds):buildYearData(y,initSelfHabitIds);});
 Object.values(ayd).forEach(yd=>{Object.values(yd).forEach(day=>{if(day&&day.toxins){day.toxins=day.toxins.filter(t=>{if(!t.includes(”||”))return false;return t.split(”||”).length>=3;});}});});
-return{isDark:loadFromStorage(“doer_isDark”)!==null?loadFromStorage(“doer_isDark”):true,allYearsData:ayd,practice:loadFromStorage(“doer_practice”)||DEFAULT_PRACTICE,selfHabitIds:initSelfHabitIds,selfHabitSchedule:loadFromStorage(“doer_selfHabitSchedule”)||{},recurringReminders:loadFromStorage(“doer_recurring”)||[],addictions:loadFromStorage(“doer_addictions”)||[],everyTasks:loadFromStorage(“doer_everyTasks”)||[],workoutSchedule:loadFromStorage(“doer_workoutSchedule”)||[],lastStreakDate:loadFromStorage(“doer_lastStreakDate”)||””};
+const savedCats=loadFromStorage(“doer_activeCategories”);
+return{isDark:loadFromStorage(“doer_isDark”)!==null?loadFromStorage(“doer_isDark”):true,allYearsData:ayd,practice:loadFromStorage(“doer_practice”)||DEFAULT_PRACTICE,selfHabitIds:initSelfHabitIds,selfHabitSchedule:loadFromStorage(“doer_selfHabitSchedule”)||{},recurringReminders:loadFromStorage(“doer_recurring”)||[],addictions:loadFromStorage(“doer_addictions”)||[],everyTasks:loadFromStorage(“doer_everyTasks”)||[],workoutSchedule:loadFromStorage(“doer_workoutSchedule”)||[],lastStreakDate:loadFromStorage(“doer_lastStreakDate”)||””,activeCategories:savedCats||ALL_CATS};
 }
 function rehydrateYearData(raw,yr=CURRENT_YEAR,habitIds=DEFAULT_SELF_HABITS){
 const base=buildYearData(yr,habitIds);const out={…base};
@@ -242,6 +270,7 @@ return{pressing,handlers:{onMouseDown:start,onMouseUp:cancel,onMouseLeave:cancel
 function getFreezeForDay(dk){try{return JSON.parse(localStorage.getItem(“doer_freeze_”+dk)||“null”);}catch(e){return null;}}
 function setFreezeForDay(dk,fromIndex){localStorage.setItem(“doer_freeze_”+dk,JSON.stringify({fromIndex}));}
 function clearFreezeForDay(dk){localStorage.removeItem(“doer_freeze_”+dk);}
+
 function FitnessDrawer({day,onClose,addMeal,workoutSchedule,saveWorkoutSchedule,T}){
 const{isDark,CAT}=T;const color=CAT.fitness.color;
 const overlayBg=isDark?“rgba(0,0,0,0.85)”:“rgba(0,0,0,0.5)”;
@@ -280,7 +309,7 @@ CE(“div”,{style:{fontSize:20,marginBottom:2}},p.icon),
 CE(“div”,{style:{fontSize:7,color:newType===p.id?color:T.sub,letterSpacing:0.5}},p.label.toUpperCase())
 ))
 ),
-CE(“input”,{placeholder:“Custom name (optional)…”,value:newName,onChange:e=>setNewName(e.target.value),style:{…inp(color,T),marginBottom:12,fontSize:13}}),
+CE(“input”,{placeholder:“Custom name (optional)\u2026”,value:newName,onChange:e=>setNewName(e.target.value),style:{…inp(color,T),marginBottom:12,fontSize:13}}),
 CE(“div”,{style:{fontSize:9,letterSpacing:2,color:T.sub,marginBottom:8}},“WHICH DAYS?”),
 CE(“div”,{style:{display:“flex”,gap:4,marginBottom:14}},DAY_LABELS.map((dl,i)=>CE(“button”,{key:i,onClick:()=>setNewDays(prev=>prev.includes(i)?prev.filter(d=>d!==i):[…prev,i]),style:{flex:1,background:newDays.includes(i)?`${color}33`:“transparent”,border:`1px solid ${newDays.includes(i)?color:borderCol}`,borderRadius:6,color:newDays.includes(i)?color:T.sub,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:9,padding:“6px 0”,fontWeight:newDays.includes(i)?“bold”:“normal”}},dl))),
 CE(“button”,{onClick:addEntry,disabled:!newDays.length,style:{width:“100%”,background:newDays.length?`${color}22`:“transparent”,border:`1px solid ${newDays.length?color+"55":borderCol}`,borderRadius:8,color:newDays.length?color:T.sub,cursor:newDays.length?“pointer”:“default”,fontFamily:”‘Georgia’,serif”,fontSize:11,padding:“9px”,letterSpacing:1}},newDays.length?”+ add to schedule”:“select days first”)
@@ -316,7 +345,7 @@ CE(“div”,{style:{fontSize:22,marginBottom:4}},p.icon),CE(“div”,{style:{f
 ))
 ),
 CE(“div”,{style:{background:isDark?“rgba(255,255,255,0.04)”:“rgba(0,0,0,0.04)”,borderRadius:14,padding:14,border:`1px solid ${borderCol}`,marginBottom:16}},
-CE(“div”,{style:{fontSize:9,letterSpacing:2,color:T.sub,marginBottom:10}},“RITUALS “,CE(“span”,{style:{fontWeight:“normal”,letterSpacing:0,fontSize:8,opacity:0.6}},”\u2014 tap \xD7 to remove, add your own below”)),
+CE(“div”,{style:{fontSize:9,letterSpacing:2,color:T.sub,marginBottom:10}},“RITUALS \u2014 tap \xD7 to remove, add your own below”),
 CE(“div”,{style:{display:“flex”,gap:6,marginBottom:10}},
 CE(“input”,{placeholder:“Icon”,value:customIcon,onChange:e=>setCustomIcon(e.target.value),style:{…inp(color,T),width:60,textAlign:“center”,fontSize:18},maxLength:2}),
 CE(“input”,{placeholder:“Practice name\u2026”,value:customName,onChange:e=>setCustomName(e.target.value),style:{…inp(color,T),flex:1}})
@@ -359,29 +388,20 @@ CE(“div”,{style:{position:“absolute”,bottom:32,fontSize:8,letterSpacing:
 );
 }
 
-// ══════════════════════════════════════
-// STATS OVERLAY — exact mockup design
-// ══════════════════════════════════════
-const STATS_CSS = `.doer-overlay{position:fixed;inset:0;z-index:500;background:#0f0d0b;font-family:'Cormorant Garamond',Georgia,serif;color:#f0ece4;overflow-y:auto;-webkit-overflow-scrolling:touch;} .doer-overlay *{box-sizing:border-box;} .do-eyebrow{font-family:'Cinzel',serif;font-size:9px;letter-spacing:6px;color:rgba(200,169,110,0.45);text-align:center;margin-bottom:8px;} .do-card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:18px 16px 14px;margin-bottom:12px;} .do-card-title{font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;color:rgba(255,255,255,0.25);} .do-card-sub{font-size:10px;font-style:italic;color:rgba(255,255,255,0.2);margin-top:3px;} .do-ptabs{display:flex;gap:4px;background:rgba(255,255,255,0.03);border-radius:30px;padding:4px;margin-bottom:16px;} .do-ptab{flex:1;padding:8px 2px;border-radius:24px;border:1px solid transparent;cursor:pointer;font-family:'Cinzel',serif;font-size:7px;letter-spacing:1px;background:transparent;color:rgba(255,255,255,0.28);transition:all 0.25s;} .do-ptab.active{background:rgba(200,169,110,0.15);color:#c8a96e;border-color:rgba(200,169,110,0.3);} .do-pnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;} .do-pnav-btn{background:none;border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:rgba(255,255,255,0.35);cursor:pointer;font-size:18px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;} .do-pnav-btn:disabled{opacity:0.2;cursor:default;} .do-period-title{font-size:30px;font-weight:300;letter-spacing:1px;text-align:center;color:#f0ece4;} .do-period-sub{font-size:9px;letter-spacing:3px;color:rgba(255,255,255,0.25);text-align:center;margin-top:3px;} .do-score-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px;} .do-sc{border-radius:14px;padding:10px 4px;text-align:center;background:rgba(255,255,255,0.025);} .do-sc-icon{font-size:16px;margin-bottom:3px;} .do-sc-num{font-size:20px;font-weight:600;line-height:1;} .do-sc-lbl{font-size:7px;letter-spacing:1px;color:rgba(255,255,255,0.25);margin-top:2px;} .do-sc-delta{font-size:8px;font-style:italic;margin-top:2px;} .do-sk-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;} .do-sk-card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;} .do-sk-num{font-size:30px;font-weight:600;line-height:1;} .do-sk-name{font-size:11px;color:rgba(255,255,255,0.55);} .do-sk-sub{font-size:7px;letter-spacing:1.5px;color:rgba(255,255,255,0.22);margin-top:2px;} .do-gap-banner{border-radius:16px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;} .do-tabs{display:flex;gap:4px;background:rgba(255,255,255,0.03);border-radius:30px;padding:4px;margin-bottom:16px;} .do-tab{flex:1;padding:8px 2px;border-radius:24px;border:1px solid transparent;cursor:pointer;font-family:'Cinzel',serif;font-size:7px;letter-spacing:1px;background:transparent;color:rgba(255,255,255,0.28);transition:all 0.25s;} .do-tab.active{background:rgba(200,169,110,0.15);color:#c8a96e;border-color:rgba(200,169,110,0.3);} .do-stats3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;} .do-stat{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px 6px;text-align:center;} .do-stat-num{font-size:24px;font-weight:600;line-height:1;margin-bottom:2px;} .do-stat-lbl{font-size:7px;letter-spacing:1.5px;color:rgba(255,255,255,0.22);line-height:1.5;} .do-conv-track{width:100%;height:10px;background:rgba(255,255,255,0.05);border-radius:5px;overflow:hidden;position:relative;margin-bottom:8px;} .do-conv-fill{height:100%;border-radius:5px;transition:width 0.8s cubic-bezier(0.16,1,0.3,1);} .do-conv-pct{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-family:'Cinzel',serif;font-size:8px;font-weight:600;} .do-conv-row{display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.2);font-style:italic;} .do-quote{border-radius:18px;padding:18px;background:rgba(200,169,110,0.06);border:1px solid rgba(200,169,110,0.15);text-align:center;} .do-quote-text{font-size:14px;font-style:italic;color:rgba(255,255,255,0.5);line-height:1.85;} .do-quote-sub{font-family:'Cinzel',serif;font-size:8px;letter-spacing:3px;color:rgba(200,169,110,0.3);margin-top:8px;} .do-bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(6,4,2,0.96);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,0.07);display:flex;padding:10px 0 28px;z-index:501;} .do-nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;padding:8px 4px;} .do-nav-icon{font-size:18px;line-height:1;} .do-nav-label{font-family:'Cinzel',serif;font-size:7px;letter-spacing:1.5px;color:rgba(255,255,255,0.3);transition:color 0.2s;} .do-nav-btn.active .do-nav-label{color:#c8a96e;} .do-nav-dot{width:4px;height:4px;border-radius:50%;background:#c8a96e;margin:2px auto 0;opacity:0;transition:opacity 0.2s;} .do-nav-btn.active .do-nav-dot{opacity:1;} .do-close-btn{position:fixed;top:14px;right:16px;z-index:502;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(255,255,255,0.5);font-size:18px;line-height:1;} .do-dp-input{flex:1;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#f0ece4;font-family:'Georgia',serif;font-size:14px;padding:7px 10px;outline:none;} .do-dp-btn{width:100%;background:rgba(200,169,110,0.15);border:1px solid rgba(200,169,110,0.35);border-radius:10px;color:#c8a96e;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;padding:10px;margin-top:4px;} .do-cmp-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;} .do-cmp-lbl{font-size:10px;color:rgba(255,255,255,0.38);width:88px;flex-shrink:0;} .do-cmp-track{flex:1;height:5px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;} .do-cmp-fill{height:100%;border-radius:3px;} .do-cmp-val{font-size:10px;width:34px;text-align:right;flex-shrink:0;} .do-empty{text-align:center;padding:60px 20px;color:rgba(255,255,255,0.25);font-size:14px;font-style:italic;line-height:1.8;}`;
+const STATS_CSS=`.doer-overlay{position:fixed;inset:0;z-index:500;background:#0f0d0b;font-family:'Cormorant Garamond',Georgia,serif;color:#f0ece4;overflow-y:auto;-webkit-overflow-scrolling:touch;} .doer-overlay *{box-sizing:border-box;} .do-eyebrow{font-family:'Cinzel',serif;font-size:9px;letter-spacing:6px;color:rgba(200,169,110,0.45);text-align:center;margin-bottom:8px;} .do-card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:18px 16px 14px;margin-bottom:12px;} .do-card-title{font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;color:rgba(255,255,255,0.25);} .do-card-sub{font-size:10px;font-style:italic;color:rgba(255,255,255,0.2);margin-top:3px;} .do-ptabs{display:flex;gap:4px;background:rgba(255,255,255,0.03);border-radius:30px;padding:4px;margin-bottom:16px;} .do-ptab{flex:1;padding:8px 2px;border-radius:24px;border:1px solid transparent;cursor:pointer;font-family:'Cinzel',serif;font-size:7px;letter-spacing:1px;background:transparent;color:rgba(255,255,255,0.28);transition:all 0.25s;} .do-ptab.active{background:rgba(200,169,110,0.15);color:#c8a96e;border-color:rgba(200,169,110,0.3);} .do-pnav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;} .do-pnav-btn{background:none;border:1px solid rgba(255,255,255,0.08);border-radius:8px;color:rgba(255,255,255,0.35);cursor:pointer;font-size:18px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;} .do-pnav-btn:disabled{opacity:0.2;cursor:default;} .do-period-title{font-size:30px;font-weight:300;letter-spacing:1px;text-align:center;color:#f0ece4;} .do-period-sub{font-size:9px;letter-spacing:3px;color:rgba(255,255,255,0.25);text-align:center;margin-top:3px;} .do-score-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:6px;} .do-sc{border-radius:14px;padding:10px 4px;text-align:center;background:rgba(255,255,255,0.025);} .do-sc-icon{font-size:16px;margin-bottom:3px;} .do-sc-num{font-size:20px;font-weight:600;line-height:1;} .do-sc-lbl{font-size:7px;letter-spacing:1px;color:rgba(255,255,255,0.25);margin-top:2px;} .do-sc-delta{font-size:8px;font-style:italic;margin-top:2px;} .do-sk-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;} .do-sk-card{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;} .do-sk-num{font-size:30px;font-weight:600;line-height:1;} .do-sk-name{font-size:11px;color:rgba(255,255,255,0.55);} .do-sk-sub{font-size:7px;letter-spacing:1.5px;color:rgba(255,255,255,0.22);margin-top:2px;} .do-gap-banner{border-radius:16px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;} .do-tabs{display:flex;gap:4px;background:rgba(255,255,255,0.03);border-radius:30px;padding:4px;margin-bottom:16px;} .do-tab{flex:1;padding:8px 2px;border-radius:24px;border:1px solid transparent;cursor:pointer;font-family:'Cinzel',serif;font-size:7px;letter-spacing:1px;background:transparent;color:rgba(255,255,255,0.28);transition:all 0.25s;} .do-tab.active{background:rgba(200,169,110,0.15);color:#c8a96e;border-color:rgba(200,169,110,0.3);} .do-stats3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;} .do-stat{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:12px 6px;text-align:center;} .do-stat-num{font-size:24px;font-weight:600;line-height:1;margin-bottom:2px;} .do-stat-lbl{font-size:7px;letter-spacing:1.5px;color:rgba(255,255,255,0.22);line-height:1.5;} .do-conv-track{width:100%;height:10px;background:rgba(255,255,255,0.05);border-radius:5px;overflow:hidden;position:relative;margin-bottom:8px;} .do-conv-fill{height:100%;border-radius:5px;transition:width 0.8s cubic-bezier(0.16,1,0.3,1);} .do-conv-pct{position:absolute;right:8px;top:50%;transform:translateY(-50%);font-family:'Cinzel',serif;font-size:8px;font-weight:600;} .do-conv-row{display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.2);font-style:italic;} .do-quote{border-radius:18px;padding:18px;background:rgba(200,169,110,0.06);border:1px solid rgba(200,169,110,0.15);text-align:center;} .do-quote-text{font-size:14px;font-style:italic;color:rgba(255,255,255,0.5);line-height:1.85;} .do-quote-sub{font-family:'Cinzel',serif;font-size:8px;letter-spacing:3px;color:rgba(200,169,110,0.3);margin-top:8px;} .do-bottom-nav{position:fixed;bottom:0;left:0;right:0;background:rgba(6,4,2,0.96);backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,0.07);display:flex;padding:10px 0 28px;z-index:501;} .do-nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;cursor:pointer;padding:8px 4px;} .do-nav-icon{font-size:18px;line-height:1;} .do-nav-label{font-family:'Cinzel',serif;font-size:7px;letter-spacing:1.5px;color:rgba(255,255,255,0.3);transition:color 0.2s;} .do-nav-btn.active .do-nav-label{color:#c8a96e;} .do-nav-dot{width:4px;height:4px;border-radius:50%;background:#c8a96e;margin:2px auto 0;opacity:0;transition:opacity 0.2s;} .do-nav-btn.active .do-nav-dot{opacity:1;} .do-close-btn{position:fixed;top:14px;right:16px;z-index:502;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:rgba(255,255,255,0.5);font-size:18px;line-height:1;} .do-dp-input{flex:1;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#f0ece4;font-family:'Georgia',serif;font-size:14px;padding:7px 10px;outline:none;} .do-dp-btn{width:100%;background:rgba(200,169,110,0.15);border:1px solid rgba(200,169,110,0.35);border-radius:10px;color:#c8a96e;cursor:pointer;font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;padding:10px;margin-top:4px;} .do-cmp-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;} .do-cmp-lbl{font-size:10px;color:rgba(255,255,255,0.38);width:88px;flex-shrink:0;} .do-cmp-track{flex:1;height:5px;background:rgba(255,255,255,0.05);border-radius:3px;overflow:hidden;} .do-cmp-fill{height:100%;border-radius:3px;} .do-cmp-val{font-size:10px;width:34px;text-align:right;flex-shrink:0;} .do-empty{text-align:center;padding:60px 20px;color:rgba(255,255,255,0.25);font-size:14px;font-style:italic;line-height:1.8;}`;
 
-function StatsOverlay({onClose,allYearsData,practice,everyTasks,selfHabitSchedule,addictions,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,CAT}){
+function StatsOverlay({onClose,allYearsData,practice,everyTasks,selfHabitSchedule,addictions,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,CAT,activeCategories}){
 const CE=React.createElement;
 const[screen,setScreen]=React.useState(“progress”);
 const[styleInjected,setStyleInjected]=React.useState(false);
 React.useEffect(()=>{
-if(!styleInjected){
-const st=document.createElement(“style”);st.textContent=STATS_CSS;document.head.appendChild(st);setStyleInjected(true);
-}
+if(!styleInjected){const st=document.createElement(“style”);st.textContent=STATS_CSS;document.head.appendChild(st);setStyleInjected(true);}
 },[]);
-
-// ── Get real first log date ──
 function getFirstLogDate(){
 try{const touched=JSON.parse(localStorage.getItem(“doer_touched”)||”[]”);if(touched.length){const sorted=[…touched].sort();return new Date(sorted[0]);}}catch(e){}
 return new Date();
 }
 const firstLog=getFirstLogDate();
-
-// ── All real logged days only ──
 const allDays=React.useMemo(()=>{
 const touched=getTouchedKeys();
 return Object.values(allYearsData).flatMap(yd=>Object.values(yd)).filter(d=>{
@@ -390,17 +410,13 @@ const k=dayKey(new Date(d.date));
 return touched.includes(k);
 }).sort((a,b)=>new Date(a.date)-new Date(b.date));
 },[allYearsData]);
-
 return CE(“div”,{className:“doer-overlay”},
-// Close button
 CE(“div”,{className:“do-close-btn”,onClick:onClose},”\u00D7”),
-// Content area (above bottom nav)
 CE(“div”,{style:{paddingBottom:80}},
 screen===“progress”
 ?CE(ProgressScreen,{allDays,firstLog,allYearsData,practice,everyTasks,selfHabitSchedule,addictions,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,CAT})
-:CE(IdentityScreen,{allDays,practice,everyTasks,selfHabitSchedule,CAT})
+:CE(IdentityScreen,{allDays,practice,everyTasks,selfHabitSchedule,CAT,activeCategories})
 ),
-// Bottom nav
 CE(“div”,{className:“do-bottom-nav”},
 [[“progress”,”\u25C8”,“PROGRESS”],[“identity”,”\u25B3”,“IDENTITY”]].map(([s,icon,lbl])=>
 CE(“button”,{key:s,className:“do-nav-btn”+(screen===s?” active”:””),onClick:()=>setScreen(s)},
@@ -412,14 +428,11 @@ CE(“div”,{className:“do-nav-dot”})
 )
 );
 }
-
 function ProgressScreen({allDays,firstLog,allYearsData,practice,everyTasks,selfHabitSchedule,addictions,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,CAT}){
 const CE=React.createElement;
 const[pType,setPType]=React.useState(“week”);
 const[pIdx,setPIdx]=React.useState(null);
 const[customResult,setCustomResult]=React.useState(null);
-
-// ── catScores ──
 function catScores(days){
 if(!days||!days.length)return{fitness:0,faith:0,work:0,self:0,disc:0};
 const f={fitness:0,faith:0,work:0,self:0,disc:0};let fc=0,fac=0,wc=0,sc=0,dc=0;
@@ -437,15 +450,12 @@ f.disc+=(d.toxins||[]).filter(t=>t.includes(”||”)).length>0?0:100;dc++;
 });
 return{fitness:fc>0?Math.round(f.fitness/fc):0,faith:fac>0?Math.round(f.faith/fac):0,work:wc>0?Math.round(f.work/wc):0,self:sc>0?Math.round(f.self/sc):0,disc:dc>0?Math.round(f.disc/dc):0};
 }
-
-// ── build periods counting from first real log ──
 function buildPeriods(type){
 if(!allDays.length)return[];
 const today=new Date();today.setHours(0,0,0,0);
 const first=new Date(firstLog);first.setHours(0,0,0,0);
 const periods=[];
 if(type===“week”){
-// Start of week containing first log (Monday)
 let w=new Date(first);const d0=w.getDay();w.setDate(w.getDate()-(d0===0?6:d0-1));
 let num=1;
 while(w<=today){
@@ -459,7 +469,7 @@ const title=isThisWeek?“This Week”:isLastWeek?“Last Week”:“Week “+nu
 periods.push({title,sub:fmtS+” \u2013 “+fmtE,days,prev:null});
 w=new Date(w);w.setDate(w.getDate()+7);num++;
 }
-} else if(type===“month”){
+}else if(type===“month”){
 let m=new Date(first.getFullYear(),first.getMonth(),1);
 while(m<=today){
 const end=new Date(m.getFullYear(),m.getMonth()+1,0);
@@ -469,7 +479,7 @@ const title=isThis?“This Month”:m.toLocaleDateString(“en-GB”,{month:“l
 if(days.length>0||isThis)periods.push({title,sub:days.length+” days logged”,days,prev:null});
 m=new Date(m.getFullYear(),m.getMonth()+1,1);
 }
-} else if(type===“quarter”){
+}else if(type===“quarter”){
 const qL=[“Q1”,“Q2”,“Q3”,“Q4”],qM=[[0,1,2],[3,4,5],[6,7,8],[9,10,11]];
 let yr=first.getFullYear();
 while(yr<=today.getFullYear()){
@@ -482,7 +492,7 @@ const title=isThis?“This Quarter”:qL[qi]+” “+yr;
 if(days.length>0||isThis)periods.push({title,sub:qs.toLocaleDateString(“en-GB”,{month:“short”})+” \u2014 “+qe.toLocaleDateString(“en-GB”,{month:“short”})+” \u00B7 “+yr,days,prev:null});
 });yr++;
 }
-} else if(type===“year”){
+}else if(type===“year”){
 let yr=first.getFullYear();
 while(yr<=today.getFullYear()){
 const ys=new Date(yr,0,1),ye=new Date(yr,11,31);
@@ -495,7 +505,6 @@ yr++;
 for(let i=1;i<periods.length;i++)periods[i].prev=catScores(periods[i-1].days);
 return periods;
 }
-
 const periods=pType===“custom”?[]:buildPeriods(pType);
 const safeIdx=pIdx===null?Math.max(0,periods.length-1):Math.min(pIdx,periods.length-1);
 const period=customResult||(periods[safeIdx]||{title:“No data yet”,sub:“Start logging to see progress”,days:[],prev:null});
@@ -503,16 +512,13 @@ const scores=catScores(period.days);
 const prevScores=customResult?null:period.prev;
 const overall=Math.round((scores.fitness+scores.faith+scores.work+scores.self+scores.disc)/5);
 const bestOverall=periods.length?Math.max(…periods.map(p=>{const s=catScores(p.days);return Math.round((s.fitness+s.faith+s.work+s.self+s.disc)/5);})):0;
-
 const CATS=[
 {key:“fitness”,label:“FITNESS”,color:CAT.fitness.color,icon:”\uD83C\uDFCB\uFE0F”},
-{key:“faith”,  label:“FAITH”,  color:CAT.faith.color,  icon:”\uD83C\uDF19”},
-{key:“work”,   label:“WORK”,   color:CAT.work.color,   icon:”\uD83D\uDCBC”},
-{key:“self”,   label:“SELF”,   color:CAT.self.color,   icon:”\u2728”},
-{key:“disc”,   label:“DISC.”,  color:CAT.toxins.color, icon:”\uD83D\uDCAA”},
+{key:“faith”,label:“FAITH”,color:CAT.faith.color,icon:”\uD83C\uDF19”},
+{key:“work”,label:“WORK”,color:CAT.work.color,icon:”\uD83D\uDCBC”},
+{key:“self”,label:“SELF”,color:CAT.self.color,icon:”\u2728”},
+{key:“disc”,label:“DISC.”,color:CAT.toxins.color,icon:”\uD83D\uDCAA”},
 ];
-
-// Radar
 function RadarChart(){
 const W=260,H=260,cx=130,cy=130,R=100,n=5;
 const ang=CATS.map((*,i)=>-Math.PI/2+i*2*Math.PI/n);
@@ -537,16 +543,13 @@ CE(“text”,{x:cx,y:cy+8,textAnchor:“middle”,fontSize:24,fontWeight:“600
 CE(“text”,{x:cx,y:cy+22,textAnchor:“middle”,fontSize:7,fontFamily:”‘Cinzel’,serif”,fill:“rgba(255,255,255,0.25)”,letterSpacing:2},“OVERALL”)
 );
 }
-
 return CE(“div”,{style:{padding:“52px 18px 0”}},
 CE(“div”,{className:“do-eyebrow”},“YOUR PROGRESS”),
-// Period type tabs
 CE(“div”,{className:“do-ptabs”},
 [“week”,“month”,“quarter”,“year”,“custom”].map(t=>
 CE(“button”,{key:t,className:“do-ptab”+(pType===t?” active”:””),onClick:()=>{setPType(t);setPIdx(null);setCustomResult(null);}},t.toUpperCase())
 )
 ),
-// Period nav (not for custom)
 pType!==“custom”&&CE(“div”,{className:“do-pnav”},
 CE(“button”,{className:“do-pnav-btn”,disabled:safeIdx===0,onClick:()=>setPIdx(Math.max(0,safeIdx-1))},”\u2039”),
 CE(“div”,{style:{textAlign:“center”}},
@@ -555,12 +558,11 @@ CE(“div”,{className:“do-period-sub”},period.sub.toUpperCase())
 ),
 CE(“button”,{className:“do-pnav-btn”,disabled:safeIdx>=periods.length-1,onClick:()=>setPIdx(Math.min(periods.length-1,safeIdx+1))},”\u203A”)
 ),
-// Custom date picker
 pType===“custom”&&CE(“div”,{className:“do-card”,style:{borderColor:“rgba(200,169,110,0.2)”}},
 CE(“div”,{className:“do-card-title”,style:{color:“rgba(200,169,110,0.6)”,marginBottom:12}},“CUSTOM DATE RANGE”),
 [“from”,“to”].map(lbl=>CE(“div”,{key:lbl,style:{display:“flex”,alignItems:“center”,gap:10,marginBottom:8}},
 CE(“div”,{style:{fontSize:10,color:“rgba(255,255,255,0.35)”,width:32,letterSpacing:1}},lbl.toUpperCase()),
-CE(“input”,{type:“date”,id:“dprog_”+lbl,className:“do-dp-input”,defaultValue:lbl===“from”?“2026-03-01”:“2026-03-29”})
+CE(“input”,{type:“date”,id:“dprog_”+lbl,className:“do-dp-input”})
 )),
 CE(“button”,{className:“do-dp-btn”,onClick:()=>{
 const f=document.getElementById(“dprog_from”)?.value;const t=document.getElementById(“dprog_to”)?.value;
@@ -572,9 +574,7 @@ const tStr=tD.toLocaleDateString(“en-GB”,{day:“numeric”,month:“short�
 setCustomResult({title:fStr+” \u2013 “+tStr,sub:days.length+” days in range”,days,prev:null});
 }},“VIEW THIS RANGE \u2192”)
 ),
-// Empty state
 period.days.length===0&&pType!==“custom”&&CE(“div”,{className:“do-empty”},“No logs for this period yet.\nStart logging daily to see your progress here.”),
-// Content
 (period.days.length>0||(pType===“custom”&&customResult))&&CE(“div”,null,
 CE(“div”,{className:“do-card”,style:{padding:“14px”,marginBottom:10}},
 CE(RadarChart),
@@ -583,9 +583,6 @@ CE(“div”,{style:{width:20,height:0,borderTop:“1px dashed rgba(255,255,255,
 CE(“span”,{style:{fontSize:8,color:“rgba(255,255,255,0.2)”,letterSpacing:1}},“ghost = previous period”),
 CE(“div”,{style:{width:20,height:0,borderTop:“1px dashed rgba(255,255,255,0.2)”}})
 )
-),
-prevScores&&CE(“div”,{style:{fontSize:9,fontStyle:“italic”,color:“rgba(255,255,255,0.2)”,textAlign:“center”,letterSpacing:1,marginBottom:6}},
-safeIdx>0?“vs “+periods[safeIdx-1].title:””
 ),
 CE(“div”,{className:“do-score-grid”},
 CATS.map(c=>{
@@ -630,12 +627,11 @@ overall>=bestOverall&&bestOverall>0?“This is your personal best period. Keep g
 );
 }
 
-function IdentityScreen({allDays,practice,everyTasks,selfHabitSchedule,CAT}){
+function IdentityScreen({allDays,practice,everyTasks,selfHabitSchedule,CAT,activeCategories}){
 const CE=React.createElement;
 const[pType,setPType]=React.useState(“month”);
 const[showCustom,setShowCustom]=React.useState(false);
 const[customDays,setCustomDays]=React.useState(null);
-
 function getDaysForPeriod(type){
 const today=new Date();today.setHours(0,0,0,0);
 if(type===“week”){const s=new Date(today);s.setDate(s.getDate()-6);const sk=dayKey(s);return allDays.filter(d=>d&&d.date&&dayKey(new Date(d.date))>=sk);}
@@ -643,11 +639,9 @@ if(type===“month”){const s=new Date(today);s.setDate(s.getDate()-29);const s
 if(type===“quarter”){const s=new Date(today);s.setDate(s.getDate()-89);const sk=dayKey(s);return allDays.filter(d=>d&&d.date&&dayKey(new Date(d.date))>=sk);}
 return allDays;
 }
-
 const activeDays=customDays||getDaysForPeriod(pType);
 const n=activeDays.length;
-
-function getDayScore(d){
+function getDS(d){
 if(!d)return 0;
 const dow=new Date(d.date).getDay();
 const ws=d.workoutSessions||[];const ms=d.meals||[];
@@ -658,8 +652,7 @@ const checks=[…ws.map(s=>s.done),…ms.map(m=>m.done),…fi.map(f=>f.done),…
 if(!checks.length)return 0;
 return Math.round(checks.filter(Boolean).length/checks.length*100);
 }
-
-const dayScores=activeDays.map(getDayScore);
+const dayScores=activeDays.map(getDS);
 const CR=0.12,DC=0.982;
 const declaredArr=[],provenArr=[];let p=0,st=0;
 dayScores.forEach((sc,i)=>{
@@ -669,20 +662,17 @@ const b=1+Math.min(st*0.05,0.8);
 if(good){p=Math.min(d,p+CR*(d-p)*b);}else{p=p*DC;}
 provenArr.push(Math.round(p*10)/10);
 });
-
 const finalD=n>0?Math.round(declaredArr[n-1]):0;
 const finalP=n>0?Math.round(provenArr[n-1]):0;
 const gap=finalD-finalP;
 const conv=finalD>0?Math.round(finalP/finalD*100):0;
 const slips=dayScores.filter(s=>s<50).length;
 const good=dayScores.filter(s=>s>=50).length;
-
 let bColor,bBg,bLbl,bMsg;
 if(n===0){bColor=“rgba(255,255,255,0.25)”;bBg=“rgba(255,255,255,0.03)”;bLbl=“NO DATA YET”;bMsg=“Start logging daily to see your identity trajectory.”;}
 else if(conv>=88){bColor=”#6ee7b7”;bBg=“rgba(110,231,183,0.08)”;bLbl=“NEARLY ALIGNED”;bMsg=“Your proven identity is almost matching who you declared you’d be.”;}
 else if(conv>=70){bColor=”#c8a96e”;bBg=“rgba(200,169,110,0.08)”;bLbl=“CONVERGING”;bMsg=“You’re closing the gap. Keep the streak going \u2014 it compounds fast.”;}
 else{bColor=”#f87171”;bBg=“rgba(248,113,113,0.08)”;bLbl=“IDENTITY DRIFT”;bMsg=“The gap is honest. It closes one consistent day at a time.”;}
-
 function IdChart(){
 if(n<2)return CE(“div”,{className:“do-empty”},“Log at least 2 days to see your trajectory.”);
 const W=300,H=200;const pad={t:14,r:14,b:20,l:20};
@@ -708,7 +698,6 @@ CE(“text”,{x:px(n-1)-4,y:py(provenArr[n-1])+14,textAnchor:“end”,fontSize
 xLabels.map((l,i)=>{if(!l)return null;const idx=Math.min(i*xStep,n-1);return CE(“text”,{key:i,x:px(idx),y:H-4,textAnchor:“middle”,fontSize:7,fill:“rgba(255,255,255,0.18)”,fontFamily:”‘Cinzel’,serif”},l);})
 );
 }
-
 return CE(“div”,{style:{padding:“52px 18px 0”}},
 CE(“div”,{style:{textAlign:“center”,marginBottom:16}},
 CE(“div”,{style:{fontSize:32,fontWeight:300,letterSpacing:1,color:”#f0ece4”,lineHeight:1.3,fontFamily:”‘Cormorant Garamond’,Georgia,serif”}},“Declared”),
@@ -733,7 +722,7 @@ showCustom&&CE(“div”,{className:“do-card”,style:{borderColor:“rgba(200
 CE(“div”,{className:“do-card-title”,style:{color:“rgba(200,169,110,0.6)”,marginBottom:10}},“CUSTOM DATE RANGE”),
 [“from”,“to”].map(lbl=>CE(“div”,{key:lbl,style:{display:“flex”,alignItems:“center”,gap:10,marginBottom:8}},
 CE(“div”,{style:{fontSize:10,color:“rgba(255,255,255,0.35)”,width:32,letterSpacing:1}},lbl.toUpperCase()),
-CE(“input”,{type:“date”,id:“did_”+lbl,className:“do-dp-input”,defaultValue:lbl===“from”?“2026-03-01”:“2026-03-29”})
+CE(“input”,{type:“date”,id:“did_”+lbl,className:“do-dp-input”})
 )),
 CE(“button”,{className:“do-dp-btn”,onClick:()=>{
 const f=document.getElementById(“did_from”)?.value;const t=document.getElementById(“did_to”)?.value;
@@ -795,6 +784,8 @@ const[showIntro,setShowIntro]=useState(true);
 const[showStats,setShowStats]=useState(false);
 const[isDark,setIsDark]=useState(initialData.isDark);
 const[view,setView]=useState(“day”);
+const[activeCategories,setActiveCategories]=useState(initialData.activeCategories||ALL_CATS);
+function saveActiveCategories(cats){setActiveCategories(cats);saveToStorage(“doer_activeCategories”,cats);}
 const[allYearsData,setAllYearsData]=useState(initialData.allYearsData);
 const[selectedKey,setSelKey]=useState(dateKey(today));
 const[viewMonth,setViewMonth]=useState(today.getMonth());
@@ -856,7 +847,7 @@ setAddictions(prev=>{const updated=prev.map(a=>({…a,streak:a.lastSlip===ys?0:(
 }
 },[]);
 const[everyTasks,setEveryTasks]=useState(initialData.everyTasks);
-const score=getDayScore(day,practice,everyTasks,selfHabitSchedule);
+const score=getDayScore(day,practice,everyTasks,selfHabitSchedule,activeCategories,addictions);
 function saveEveryTasks(tasks){setEveryTasks(tasks);saveToStorage(“doer_everyTasks”,tasks);}
 function saveWorkoutSchedule(schedule){
 setWorkoutSchedule(schedule);saveToStorage(“doer_workoutSchedule”,schedule);
@@ -926,9 +917,8 @@ CE(“div”,{style:{display:“flex”,gap:5,alignItems:“center”}},
 [[“day”,“DAY”],[“month”,“MTH”],[“year”,“YR”]].map(([v,l])=>CE(“button”,{key:v,onClick:()=>setView(v),style:{background:view===v?isDark?“rgba(255,255,255,0.12)”:“rgba(0,0,0,0.08)”:“transparent”,border:`1px solid ${view===v?isDark?"rgba(255,255,255,0.25)":"rgba(0,0,0,0.2)":T.border}`,borderRadius:6,color:view===v?T.text:T.sub,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:9,letterSpacing:2,padding:“5px 10px”}},l)),
 (viewYear!==CURRENT_YEAR||view===“month”&&viewMonth!==today.getMonth()||view===“day”&&selectedKey!==dateKey(today))&&CE(“button”,{onClick:()=>{setViewYear(CURRENT_YEAR);setViewMonth(today.getMonth());setSelKey(dateKey(today));},style:{background:`${CAT.faith.color}18`,border:`1px solid ${CAT.faith.color}44`,borderRadius:6,color:CAT.faith.color,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:9,letterSpacing:1,padding:“5px 8px”}},“NOW”),
 CE(“button”,{onClick:toggleDark,style:{background:isDark?“rgba(255,255,255,0.08)”:“rgba(0,0,0,0.06)”,border:`1px solid ${isDark?"rgba(255,255,255,0.15)":"rgba(0,0,0,0.12)"}`,borderRadius:20,cursor:“pointer”,fontSize:13,padding:“4px 10px”,lineHeight:1}},isDark?”\u2600\uFE0F”:”\u{1F319}”),
-CE(“button”,{onClick:()=>setShowStats(true),title:“Progress & Identity”,style:{background:“rgba(200,169,110,0.12)”,border:“1px solid rgba(200,169,110,0.3)”,borderRadius:20,cursor:“pointer”,fontSize:11,color:”#c8a96e”,padding:“4px 10px”,lineHeight:1,fontFamily:”‘Georgia’,serif”,letterSpacing:1}},“STATS”),
-CE(“button”,{onClick:onSignOut,title:“Sign out”,style:{background:“transparent”,border:“1px solid rgba(255,255,255,0.08)”,borderRadius:20,cursor:“pointer”,fontSize:11,color:“rgba(255,255,255,0.28)”,padding:“4px 10px”,lineHeight:1}},“↪”),
-
+CE(“button”,{onClick:()=>setShowStats(true),style:{background:“rgba(200,169,110,0.12)”,border:“1px solid rgba(200,169,110,0.3)”,borderRadius:20,cursor:“pointer”,fontSize:11,color:”#c8a96e”,padding:“4px 10px”,lineHeight:1,fontFamily:”‘Georgia’,serif”,letterSpacing:1}},“STATS”),
+CE(“button”,{onClick:onSignOut,style:{background:“transparent”,border:“1px solid rgba(255,255,255,0.08)”,borderRadius:20,cursor:“pointer”,fontSize:11,color:“rgba(255,255,255,0.28)”,padding:“4px 10px”,lineHeight:1}},”\u21AA”)
 ),
 CE(“div”,{style:{position:“relative”,width:42,height:42}},
 CE(“svg”,{width:“42”,height:“42”,style:{transform:“rotate(-90deg)”}},
@@ -942,7 +932,7 @@ CE(“div”,{style:{position:“absolute”,inset:0,display:“flex”,alignIte
 if(view===“day”){
 const keys=Object.values(allYearsData).flatMap(yd=>Object.keys(yd)).sort();const idx=keys.indexOf(selectedKey);
 const swipe=handleSwipe(()=>{if(idx<keys.length-1)openDay(keys[idx+1]);},()=>{if(idx>0)openDay(keys[idx-1]);});
-return CE(“div”,{…swipe},CE(DayView,{day,score,T,practice,tog,togF,togWorkout,togMeal,updateDay,updateWorkoutField,updMeal,onOpenFitness:()=>setShowFitnessDrawer(true),onOpenWork:()=>setShowWorkDrawer(true),everyTasks,togEveryTask,addTodayTask,togTodayTask,remTodayTask,addictions,logSlip,addAddiction,removeAddiction,renameAddiction,onOpenSelf:()=>setShowSelfDrawer(true),togSelf,updateSelfField,selfHabitSchedule,onOpenPicker:()=>setShowPicker(true),recurringReminders,saveRecurring,updateNote,addPlan,togPlan,delPlan,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,mealStreak,workoutSchedule}));
+return CE(“div”,{…swipe},CE(DayView,{day,score,T,practice,tog,togF,togWorkout,togMeal,updateDay,updateWorkoutField,updMeal,onOpenFitness:()=>setShowFitnessDrawer(true),onOpenWork:()=>setShowWorkDrawer(true),everyTasks,togEveryTask,addTodayTask,togTodayTask,remTodayTask,addictions,logSlip,addAddiction,removeAddiction,renameAddiction,onOpenSelf:()=>setShowSelfDrawer(true),togSelf,updateSelfField,selfHabitSchedule,onOpenPicker:()=>setShowPicker(true),recurringReminders,saveRecurring,updateNote,addPlan,togPlan,delPlan,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,mealStreak,workoutSchedule,activeCategories,saveActiveCategories}));
 }
 if(view===“month”){
 const swipe=handleSwipe(()=>{if(viewMonth===11){setViewMonth(0);setViewYear(y=>Math.min(CURRENT_YEAR+5,y+1));}else setViewMonth(m=>m+1);},()=>{if(viewMonth===0){setViewMonth(11);setViewYear(y=>y-1);}else setViewMonth(m=>m-1);});
@@ -953,24 +943,63 @@ const swipe=handleSwipe(()=>setViewYear(y=>Math.min(CURRENT_YEAR+5,y+1)),()=>set
 return CE(“div”,{…swipe},CE(YearView,{yearData,addictions,everyTasks,selfHabitSchedule,onOpenDay:openDay,onOpenMonth:m=>{setViewMonth(m);setView(“month”);},T,practice,viewYear,setViewYear,recurringReminders}));
 }
 })(),
-showStats&&CE(StatsOverlay,{onClose:()=>setShowStats(false),allYearsData,practice,everyTasks,selfHabitSchedule,addictions,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,CAT}),
+showStats&&CE(StatsOverlay,{onClose:()=>setShowStats(false),allYearsData,practice,everyTasks,selfHabitSchedule,addictions,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,CAT,activeCategories}),
 showPicker&&CE(PracticePicker,{practice,onSave:handleSavePractice,onClose:()=>setShowPicker(false),T}),
 showFitnessDrawer&&day&&CE(FitnessDrawer,{day,onClose:()=>setShowFitnessDrawer(false),addMeal,workoutSchedule,saveWorkoutSchedule,T}),
 showSelfDrawer&&CE(SelfDrawer,{selfHabitIds,selfHabitSchedule,onSave:saveSelfHabits,onClose:()=>setShowSelfDrawer(false),T}),
 showWorkDrawer&&CE(WorkDrawer,{everyTasks,todayTasks:day?.todayTasks||[],onSave:(every,todayList)=>{saveEveryTasks(every);updateDay(d=>({…d,todayTasks:todayList}));},onClose:()=>setShowWorkDrawer(false),T})
 );
 }
-function DayView({day,score,T,practice,tog,togF,togWorkout,togMeal,updateDay,updateWorkoutField,updMeal,onOpenFitness,onOpenWork,everyTasks,togEveryTask,addTodayTask,togTodayTask,remTodayTask,addictions,logSlip,addAddiction,removeAddiction,renameAddiction,onOpenSelf,togSelf,updateSelfField,selfHabitSchedule,onOpenPicker,recurringReminders,saveRecurring,updateNote,addPlan,togPlan,delPlan,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,mealStreak,workoutSchedule}){
+
+function CategorySettingsDrawer({activeCategories,saveActiveCategories,T,onClose}){
+const CE=React.createElement;const ac=activeCategories||ALL_CATS;
+const CATS=[
+{id:“fitness”,icon:”\uD83C\uDFCB\uFE0F”,label:“FITNESS”,color:”#c8a96e”,sub:“workouts & meals”},
+{id:“faith”,icon:”\uD83C\uDF19”,label:“FAITH”,color:”#7eb8c9”,sub:“daily rituals”},
+{id:“work”,icon:”\uD83D\uDCBC”,label:“WORK”,color:”#a78bfa”,sub:“tasks & deep work”},
+{id:“self”,icon:”\u2728”,label:“SELF”,color:”#6ee7b7”,sub:“habits that matter”},
+{id:“discipline”,icon:”\uD83D\uDCAA”,label:“DISCIPLINE”,color:”#f87171”,sub:“releasing habits”},
+];
+function toggle(id){const next=ac.includes(id)?ac.filter(x=>x!==id):[…ac,id];saveActiveCategories(next);}
+return CE(“div”,{style:{position:“fixed”,inset:0,zIndex:500,background:“rgba(0,0,0,0.6)”,display:“flex”,alignItems:“flex-end”},onClick:onClose},
+CE(“div”,{style:{background:”#0f0d0b”,borderRadius:“20px 20px 0 0”,width:“100%”,maxWidth:480,padding:“20px 18px 44px”,border:“1px solid rgba(255,255,255,0.07)”},onClick:e=>e.stopPropagation()},
+CE(“div”,{style:{display:“flex”,justifyContent:“center”,marginBottom:14}},CE(“div”,{style:{width:36,height:4,borderRadius:2,background:“rgba(255,255,255,0.15)”}})),
+CE(“div”,{style:{display:“flex”,justifyContent:“space-between”,alignItems:“center”,marginBottom:6}},
+CE(“span”,{style:{fontSize:11,letterSpacing:3,color:T.text,fontWeight:“bold”}},“ACTIVE CATEGORIES”),
+CE(“button”,{onClick:onClose,style:{background:“none”,border:“none”,color:T.sub,fontSize:20,cursor:“pointer”}},”\xD7”)
+),
+CE(“div”,{style:{fontSize:10,color:“rgba(255,255,255,0.25)”,letterSpacing:0.5,marginBottom:16,lineHeight:1.6}},“Only active categories count toward your daily score and streak.”),
+CATS.map(c=>{
+const on=ac.includes(c.id);
+return CE(“div”,{key:c.id,onClick:()=>toggle(c.id),style:{display:“flex”,alignItems:“center”,gap:12,background:on?“rgba(255,255,255,0.04)”:“rgba(255,255,255,0.01)”,border:“1px solid “+(on?c.color+“44”:“rgba(255,255,255,0.05)”),borderRadius:10,padding:“10px 14px”,marginBottom:6,cursor:“pointer”,transition:“all 0.2s”,opacity:on?1:0.4}},
+CE(“span”,{style:{fontSize:18,flexShrink:0}},c.icon),
+CE(“div”,{style:{flex:1}},CE(“div”,{style:{fontSize:10,fontWeight:“bold”,color:on?c.color:“rgba(255,255,255,0.3)”,letterSpacing:2}},c.label),CE(“div”,{style:{fontSize:9,color:“rgba(255,255,255,0.22)”,marginTop:1}},c.sub)),
+CE(“div”,{style:{width:24,height:24,borderRadius:“50%”,flexShrink:0,background:on?c.color+“22”:“transparent”,border:“2px solid “+(on?c.color:“rgba(255,255,255,0.15)”),display:“flex”,alignItems:“center”,justifyContent:“center”,fontSize:12,color:c.color}},on?”\u2713”:””)
+);
+}),
+ac.length===0&&CE(“div”,{style:{fontSize:10,color:”#f87171”,textAlign:“center”,marginTop:8}},“Select at least one category.”)
+)
+);
+}
+function DayView({day,score,T,practice,tog,togF,togWorkout,togMeal,updateDay,updateWorkoutField,updMeal,onOpenFitness,onOpenWork,everyTasks,togEveryTask,addTodayTask,togTodayTask,remTodayTask,addictions,logSlip,addAddiction,removeAddiction,renameAddiction,onOpenSelf,togSelf,updateSelfField,selfHabitSchedule,onOpenPicker,recurringReminders,saveRecurring,updateNote,addPlan,togPlan,delPlan,overallStreak,fitnessStreak,faithStreak,workStreak,selfStreak,disciplineStreak,mealStreak,workoutSchedule,activeCategories,saveActiveCategories}){
 if(!day)return null;
 const{CAT}=T;const ramzan=practice.id===“islam”&&isRamzan(day.date);const d=day.date;
-const[showNR,setShowNR]=useState(false);const isFuture=dateKey(d)>dateKey(today);const CE=React.createElement;
+const[showNR,setShowNR]=useState(false);const[showCatSettings,setShowCatSettings]=useState(false);
+const isFuture=dateKey(d)>dateKey(today);const CE=React.createElement;const ac=activeCategories||ALL_CATS;
 return CE(“div”,{style:{padding:“0 0 80px 0”}},
 CE(“div”,{style:{padding:“20px 20px 14px”,borderBottom:`1px solid ${T.border}`}},
 CE(“div”,{style:{display:“flex”,justifyContent:“space-between”,alignItems:“flex-end”}},
 CE(“div”,null,
 CE(“div”,{style:{fontSize:11,letterSpacing:4,color:T.sub}},DAY_NAMES[d.getDay()].toUpperCase()),
 CE(“div”,{style:{fontSize:52,fontWeight:“bold”,lineHeight:1,letterSpacing:-1,marginTop:2}},d.getDate()),
-CE(“div”,{style:{fontSize:11,letterSpacing:3,color:T.sub,marginTop:2}},MONTH_NAMES[d.getMonth()].toUpperCase(),” \xB7 “,d.getFullYear())
+CE(“div”,{style:{display:“flex”,alignItems:“center”,gap:8,marginTop:2}},
+CE(“div”,{style:{fontSize:11,letterSpacing:3,color:T.sub}},MONTH_NAMES[d.getMonth()].toUpperCase(),” \xB7 “,d.getFullYear()),
+CE(“button”,{onClick:()=>setShowCatSettings(true),style:{background:“none”,border:“none”,cursor:“pointer”,padding:“4px 2px”,display:“flex”,flexDirection:“column”,gap:“3px”}},
+CE(“span”,{style:{display:“block”,width:16,height:1,background:“rgba(255,255,255,0.28)”}}),
+CE(“span”,{style:{display:“block”,width:10,height:1,background:“rgba(255,255,255,0.28)”}}),
+CE(“span”,{style:{display:“block”,width:16,height:1,background:“rgba(255,255,255,0.28)”}})
+)
+)
 ),
 CE(“div”,{style:{textAlign:“right”}},
 !isFuture&&(day.toxins||[]).filter(t=>t.includes(”||”)).length>0&&CE(“div”,{style:{fontSize:11,color:CAT.toxins.color,letterSpacing:1}},(day.toxins||[]).filter(t=>t.includes(”||”)).length,” slips”),
@@ -988,19 +1017,20 @@ isFuture?CE(React.Fragment,null,
 CE(“div”,{style:{textAlign:“center”,padding:“24px 16px 16px”,color:T.sub,fontSize:10,letterSpacing:2,opacity:0.4}},“HABIT TRACKING UNLOCKS ON THIS DAY”),
 CE(NotesRemindersPanel,{day,onOpen:()=>setShowNR(true),recurringReminders,T})
 ):CE(React.Fragment,null,
-CE(“div”,{style:{display:“grid”,gridTemplateColumns:“1fr 1fr”,gap:8,marginBottom:8}},
-CE(“div”,{id:“doer-panel-fitness”},CE(FitnessPanelClean,{day,onOpenFitness,togWorkout,togMeal,updateWorkoutField,updMeal,onDeleteMeal:id=>updateDay(d2=>({…d2,meals:d2.meals.filter(m=>m.id!==id)})),T,streak:fitnessStreak,mealStreak,workoutSchedule})),
-CE(“div”,{id:“doer-panel-faith”},CE(FaithPanel,{day,practice,ramzan,togF,tog,onOpenPicker,T,streak:faithStreak}))
+(ac.includes(“fitness”)||ac.includes(“faith”))&&CE(“div”,{style:{display:“grid”,gridTemplateColumns:ac.includes(“fitness”)&&ac.includes(“faith”)?“1fr 1fr”:“1fr”,gap:8,marginBottom:8}},
+ac.includes(“fitness”)&&CE(“div”,{id:“doer-panel-fitness”},CE(FitnessPanelClean,{day,onOpenFitness,togWorkout,togMeal,updateWorkoutField,updMeal,onDeleteMeal:id=>updateDay(d2=>({…d2,meals:d2.meals.filter(m=>m.id!==id)})),T,streak:fitnessStreak,mealStreak,workoutSchedule})),
+ac.includes(“faith”)&&CE(“div”,{id:“doer-panel-faith”},CE(FaithPanel,{day,practice,ramzan,togF,tog,onOpenPicker,T,streak:faithStreak}))
 ),
-CE(“div”,{style:{display:“grid”,gridTemplateColumns:“1fr 1fr”,gap:8,marginBottom:8,minWidth:0}},
-CE(“div”,{id:“doer-panel-work”},CE(WorkPanel,{day,onOpenWork,everyTasks,togEveryTask,addTodayTask,togTodayTask,remTodayTask,T,streak:workStreak})),
-CE(“div”,{id:“doer-panel-self”},CE(SelfPanel,{day,onOpenSelf,togSelf,updateSelfField,selfHabitSchedule,T,streak:selfStreak}))
+(ac.includes(“work”)||ac.includes(“self”))&&CE(“div”,{style:{display:“grid”,gridTemplateColumns:ac.includes(“work”)&&ac.includes(“self”)?“1fr 1fr”:“1fr”,gap:8,marginBottom:8,minWidth:0}},
+ac.includes(“work”)&&CE(“div”,{id:“doer-panel-work”},CE(WorkPanel,{day,onOpenWork,everyTasks,togEveryTask,addTodayTask,togTodayTask,remTodayTask,T,streak:workStreak})),
+ac.includes(“self”)&&CE(“div”,{id:“doer-panel-self”},CE(SelfPanel,{day,onOpenSelf,togSelf,updateSelfField,selfHabitSchedule,T,streak:selfStreak}))
 ),
-CE(“div”,{id:“doer-panel-discipline”},CE(DisciplinePanel,{addictions,day,logSlip,addAddiction,removeAddiction,renameAddiction,T,streak:disciplineStreak})),
+ac.includes(“discipline”)&&CE(“div”,{id:“doer-panel-discipline”},CE(DisciplinePanel,{addictions,day,logSlip,addAddiction,removeAddiction,renameAddiction,T,streak:disciplineStreak})),
 CE(NotesRemindersPanel,{day,onOpen:()=>setShowNR(true),recurringReminders,T})
 )
 ),
-showNR&&CE(NotesRemindersDrawer,{day,recurringReminders,saveRecurring,updateNote,addPlan,togPlan,delPlan,onClose:()=>setShowNR(false),T})
+showNR&&CE(NotesRemindersDrawer,{day,recurringReminders,saveRecurring,updateNote,addPlan,togPlan,delPlan,onClose:()=>setShowNR(false),T}),
+showCatSettings&&CE(CategorySettingsDrawer,{activeCategories:ac,saveActiveCategories,T,onClose:()=>setShowCatSettings(false)})
 );
 }
 function NotesRemindersPanel({day,onOpen,recurringReminders,T}){
@@ -1043,14 +1073,14 @@ CE(“div”,{style:{flex:1}},r.time&&CE(“div”,{style:{fontSize:9,color,lett
 CE(“button”,{onClick:()=>delPlan(r.id),style:{background:“none”,border:“none”,color:T.sub,fontSize:16,cursor:“pointer”,opacity:0.4}},”\xD7”)
 )),
 CE(“div”,{style:{display:“flex”,gap:8,marginTop:8}},
-CE(“input”,{type:“time”,value:newTime,onChange:e=>setNewTime(e.target.value),style:{…inp(color,T),width:90,fontSize:14,WebkitAppearance:“none”,background:T.isDark?“rgba(0,0,0,0.5)”:“rgba(255,255,255,0.85)”,colorScheme:“dark”}}),
+CE(“input”,{type:“time”,value:newTime,onChange:e=>setNewTime(e.target.value),style:{…inp(color,T),width:90,fontSize:14}}),
 CE(“input”,{placeholder:“Add a plan\u2026”,value:newText,onChange:e=>setNewText(e.target.value),onKeyDown:e=>e.key===“Enter”&&submitPlan(),style:{…inp(color,T),flex:1}}),
-CE(“button”,{onClick:submitPlan,style:{background:“rgba(255,200,50,0.15)”,border:“1px solid rgba(255,200,50,0.4)”,borderRadius:8,color,cursor:“pointer”,fontSize:16,padding:“0 12px”,fontFamily:”‘Georgia’,serif”,WebkitAppearance:“none”}},”+”)
+CE(“button”,{onClick:submitPlan,style:{background:“rgba(255,200,50,0.15)”,border:“1px solid rgba(255,200,50,0.4)”,borderRadius:8,color,cursor:“pointer”,fontSize:16,padding:“0 12px”,fontFamily:”‘Georgia’,serif”}},”+”)
 )
 ),
 tab===“recurring”&&CE(“div”,null,
 CE(“div”,{style:{fontSize:8,letterSpacing:2,color:T.sub,marginBottom:10}},“REPEATS EVERY DAY OR WEEK”),
-recurringReminders.length===0&&CE(“div”,{style:{fontSize:10,color:T.sub,opacity:0.5,marginBottom:14,letterSpacing:1}},“no recurring plans yet”),
+recurringReminders.length===0&&CE(“div”,{style:{fontSize:10,color:T.sub,opacity:0.5,marginBottom:14}},“no recurring plans yet”),
 recurringReminders.map(r=>CE(“div”,{key:r.id,style:{display:“flex”,alignItems:“center”,gap:10,marginBottom:10,padding:“8px 10px”,background:T.isDark?“rgba(255,255,255,0.03)”:“rgba(0,0,0,0.03)”,borderRadius:10,border:`1px solid ${T.border}`}},
 CE(“div”,{style:{width:8,height:8,borderRadius:“50%”,background:recColor,flexShrink:0}}),
 CE(“div”,{style:{flex:1}},r.time&&CE(“div”,{style:{fontSize:9,color:recColor,letterSpacing:1,marginBottom:2}},r.time),CE(“div”,{style:{fontSize:12,color:T.text}},r.text),CE(“div”,{style:{fontSize:8,color:T.sub,marginTop:2,letterSpacing:1}},r.freq===“daily”?“Every day”:`Every week \xB7 ${(r.days||[]).map(d=>DAY_LABELS[d]).join(", ")}`)),
@@ -1070,6 +1100,7 @@ CE(“button”,{onClick:submitRecurringPlan,style:{width:“100%”,background:
 )
 );
 }
+
 function FitnessPanelClean({day,onOpenFitness,togWorkout,togMeal,updateWorkoutField,updMeal,onDeleteMeal,T,streak,mealStreak,workoutSchedule}){
 const[notesModal,setNotesModal]=useState(null);
 const color=T.CAT.fitness.color;const{pressing,handlers}=useLongPress(onOpenFitness,600);
@@ -1087,9 +1118,7 @@ CE(“textarea”,{autoFocus:true,placeholder:“e.g. leg press 3x12\ndumbbell p
 CE(“div”,{…handlers,style:{background:T.panelBg,backdropFilter:“blur(14px)”,borderRadius:14,padding:“12px 10px 10px”,border:`1px solid ${color}${T.isDark?"22":"33"}`,userSelect:“none”,minWidth:0,width:“100%”,boxSizing:“border-box”,overflow:“hidden”}},
 CE(“style”,null,”@keyframes fillBar{from{width:0%}to{width:100%}}”),
 CE(“div”,{style:{display:“flex”,justifyContent:“space-between”,alignItems:“center”,marginBottom:10,paddingLeft:2}},
-CE(“span”,{style:{fontSize:8,letterSpacing:3,color:pressing?color:`${color}${T.isDark?"99":"cc"}`,transition:“color 0.2s”}},
-“FITNESS”,streak>0&&CE(“span”,{style:{fontSize:7,letterSpacing:1,color:`${color}66`,fontStyle:“italic”,marginLeft:5,whiteSpace:“nowrap”}},“Day “,streak)
-),
+CE(“span”,{style:{fontSize:8,letterSpacing:3,color:pressing?color:`${color}${T.isDark?"99":"cc"}`,transition:“color 0.2s”}},“FITNESS”,streak>0&&CE(“span”,{style:{fontSize:7,letterSpacing:1,color:`${color}66`,fontStyle:“italic”,marginLeft:5,whiteSpace:“nowrap”}},“Day “,streak)),
 CE(“div”,{style:{display:“flex”,alignItems:“center”,gap:4}},
 CE(“div”,{style:{width:40,height:2,borderRadius:2,overflow:“hidden”,background:`${color}22`,opacity:pressing?1:0,transition:“opacity 0.15s”}},pressing&&CE(“div”,{style:{height:“100%”,background:color,animation:“fillBar 0.6s linear forwards”}})),
 CE(“div”,{style:{fontSize:7,color:T.sub,letterSpacing:1,opacity:pressing?1:0.4,transition:“opacity 0.2s”}},pressing?”\u23F3”:“hold”)
@@ -1123,7 +1152,7 @@ CE(“button”,{onClick:()=>setOpenId(null),style:{background:“transparent”
 }),
 CE(“div”,{style:{height:1,background:T.isDark?“rgba(255,255,255,0.05)”:“rgba(0,0,0,0.05)”,margin:“6px 0”}}),
 CE(“div”,{style:{display:“flex”,justifyContent:“space-between”,alignItems:“center”,marginBottom:6,paddingLeft:2}},
-CE(“span”,{style:{fontSize:8,letterSpacing:3,color:`${color}${T.isDark?"99":"cc"}`}},“MEALS”,CE(“span”,{style:{fontSize:7,letterSpacing:1,color:`${color}66`,fontStyle:“italic”,marginLeft:5,whiteSpace:“nowrap”}},“Day “,mealStreak>0?mealStreak:1))
+CE(“span”,{style:{fontSize:8,letterSpacing:3,color:`${color}${T.isDark?"99":"cc"}`}},“MEALS”,CE(“span”,{style:{fontSize:7,letterSpacing:1,color:`${color}66`,fontStyle:“italic”,marginLeft:5}},“Day “,mealStreak>0?mealStreak:1))
 ),
 day.meals.map(m=>{
 const mealId=`meal-${m.id}`;const isOpen=openId===mealId;
@@ -1134,7 +1163,7 @@ CE(“div”,{style:{flex:1,minWidth:0}},CE(“div”,{style:{fontSize:11,fontWe
 CE(“div”,{style:{fontSize:8,color:`${color}55`,flexShrink:0}},isOpen?”\u25B2”:”\u25BC”),
 CE(“div”,{onClick:e=>{e.stopPropagation();onDeleteMeal(m.id);},style:{fontSize:10,color:T.isDark?“rgba(255,255,255,0.15)”:“rgba(0,0,0,0.15)”,cursor:“pointer”,paddingLeft:4,flexShrink:0,lineHeight:1}},”\u2212”)
 ),
-isOpen&&CE(“div”,{style:{marginTop:5}},CE(“div”,{style:{display:“flex”,gap:6,marginBottom:5}},CE(“input”,{autoFocus:true,placeholder:“What did you eat?”,value:m.content,onChange:e=>updMeal(m.id,“content”,e.target.value),style:{…inp(color,T),flex:1}})))
+isOpen&&CE(“div”,{style:{marginTop:5}},CE(“input”,{autoFocus:true,placeholder:“What did you eat?”,value:m.content,onChange:e=>updMeal(m.id,“content”,e.target.value),style:{…inp(color,T)}}))
 );
 })
 )
@@ -1147,8 +1176,8 @@ function submit(){if(!newTask.trim())return;addTodayTask(newTask.trim());setNewT
 return CE(“div”,{…handlers,style:{background:T.panelBg,backdropFilter:“blur(14px)”,borderRadius:14,padding:“12px 10px 10px”,border:`1px solid ${color}${T.isDark?"22":"33"}`,userSelect:“none”,minWidth:0,width:“100%”,boxSizing:“border-box”,overflow:“hidden”}},
 CE(“style”,null,”@keyframes fillBar{from{width:0%}to{width:100%}}”),
 CE(“div”,{style:{display:“flex”,justifyContent:“space-between”,alignItems:“center”,marginBottom:10,paddingLeft:2}},
-CE(“span”,{style:{fontSize:8,letterSpacing:3,color:pressing?color:`${color}${T.isDark?"99":"cc"}`,transition:“color 0.2s”}},“WORK”,streak>0&&CE(“span”,{style:{fontSize:7,letterSpacing:1,color:`${color}66`,fontStyle:“italic”,marginLeft:5,whiteSpace:“nowrap”}},“Day “,streak)),
-CE(“div”,{style:{display:“flex”,alignItems:“center”,gap:6}},CE(“div”,{style:{width:40,height:2,borderRadius:2,overflow:“hidden”,background:`${color}22`,opacity:pressing?1:0,transition:“opacity 0.15s”}},pressing&&CE(“div”,{style:{height:“100%”,background:color,animation:“fillBar 0.6s linear forwards”}})),CE(“div”,{style:{fontSize:7,color:T.sub,letterSpacing:1,opacity:pressing?1:0.4,transition:“opacity 0.2s”}},pressing?”\u23F3”:“hold”))
+CE(“span”,{style:{fontSize:8,letterSpacing:3,color:pressing?color:`${color}${T.isDark?"99":"cc"}`,transition:“color 0.2s”}},“WORK”,streak>0&&CE(“span”,{style:{fontSize:7,letterSpacing:1,color:`${color}66`,fontStyle:“italic”,marginLeft:5}},“Day “,streak)),
+CE(“div”,{style:{display:“flex”,alignItems:“center”,gap:6}},CE(“div”,{style:{width:40,height:2,borderRadius:2,overflow:“hidden”,background:`${color}22`,opacity:pressing?1:0,transition:“opacity 0.15s”}},pressing&&CE(“div”,{style:{height:“100%”,background:color,animation:“fillBar 0.6s linear forwards”}})),CE(“div”,{style:{fontSize:7,color:T.sub,letterSpacing:1,opacity:pressing?1:0.4}},pressing?”\u23F3”:“hold”))
 ),
 everyTasks.length>0&&CE(React.Fragment,null,
 CE(“div”,{style:{fontSize:7,letterSpacing:2,color:`${color}55`,marginBottom:5}},“EVERYDAY”),
@@ -1168,6 +1197,7 @@ newTask.trim()&&CE(“div”,{onClick:submit,style:{fontSize:13,color,cursor:“
 )
 );
 }
+
 function WorkDrawer({everyTasks,todayTasks,onSave,onClose,T}){
 const{isDark,CAT}=T;const color=CAT.work.color;
 const[local,setLocal]=useState(everyTasks.map(t=>({…t})));const[todayLocal,setTodayLocal]=useState(todayTasks.map(t=>({…t})));
@@ -1181,13 +1211,13 @@ CE(“div”,{style:{display:“flex”,justifyContent:“center”,padding:“1
 CE(“div”,{style:{padding:“14px 18px 0”}},
 CE(“div”,{style:{display:“flex”,justifyContent:“space-between”,alignItems:“center”,marginBottom:16}},CE(“div”,null,CE(“div”,{style:{fontSize:14,fontWeight:“bold”,letterSpacing:3,color:T.text}},“WORK”),CE(“div”,{style:{fontSize:9,color:T.sub,letterSpacing:2,marginTop:2}},“MANAGE YOUR WORK BLOCKS”)),CE(“button”,{onClick:onClose,style:{background:“none”,border:“none”,color:T.sub,cursor:“pointer”,fontSize:20,lineHeight:1}},”\xD7”)),
 CE(“div”,{style:{fontSize:9,letterSpacing:2,color,marginBottom:8}},“EVERYDAY”),CE(“div”,{style:{fontSize:9,color:T.sub,letterSpacing:1,marginBottom:10}},“Always there \xB7 never disappears”),
-CE(“div”,{style:{marginBottom:10}},local.length===0&&CE(“div”,{style:{fontSize:10,color:T.sub,textAlign:“center”,padding:“10px 0”,letterSpacing:1}},“Nothing added yet”),
+CE(“div”,{style:{marginBottom:10}},local.length===0&&CE(“div”,{style:{fontSize:10,color:T.sub,textAlign:“center”,padding:“10px 0”}},“Nothing added yet”),
 local.map(t=>CE(“div”,{key:t.id,style:{display:“flex”,alignItems:“center”,gap:10,padding:“10px 12px”,background:isDark?“rgba(255,255,255,0.04)”:“rgba(0,0,0,0.03)”,border:`1px solid ${borderCol}`,borderRadius:10,marginBottom:6}},CE(“div”,{style:{width:7,height:7,borderRadius:“50%”,background:`${color}66`,flexShrink:0}}),CE(“div”,{style:{flex:1,fontSize:13,color:T.text}},t.label),CE(“div”,{onClick:()=>setLocal(prev=>prev.filter(x=>x.id!==t.id)),style:{fontSize:18,color:T.sub,cursor:“pointer”,opacity:0.5,lineHeight:1}},”\xD7”)))
 ),
 CE(“div”,{style:{display:“flex”,gap:8,marginBottom:20}},CE(“input”,{autoFocus:true,placeholder:“e.g. Deep Work, Trading\u2026”,value:newEvery,onChange:e=>{if(e.target.value.length<=30)setNewEvery(e.target.value);},onKeyDown:e=>e.key===“Enter”&&addTask(),maxLength:30,style:{…inp(color,T),flex:1}}),CE(“button”,{onClick:addTask,style:{background:`${color}22`,border:`1px solid ${color}44`,borderRadius:8,color,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:14,padding:“0 14px”}},”+”)),
 CE(“div”,{style:{height:1,background:borderCol,marginBottom:16}}),
 CE(“div”,{style:{fontSize:9,letterSpacing:2,color,marginBottom:8}},“TODAY”),CE(“div”,{style:{fontSize:9,color:T.sub,letterSpacing:1,marginBottom:10}},“Clears tomorrow \xB7 fresh every day”),
-CE(“div”,{style:{marginBottom:10}},todayLocal.length===0&&CE(“div”,{style:{fontSize:10,color:T.sub,textAlign:“center”,padding:“10px 0”,letterSpacing:1}},“Nothing added yet”),
+CE(“div”,{style:{marginBottom:10}},todayLocal.length===0&&CE(“div”,{style:{fontSize:10,color:T.sub,textAlign:“center”,padding:“10px 0”}},“Nothing added yet”),
 todayLocal.map(t=>CE(“div”,{key:t.id,style:{display:“flex”,alignItems:“center”,gap:10,padding:“10px 12px”,background:isDark?“rgba(255,255,255,0.04)”:“rgba(0,0,0,0.03)”,border:`1px solid ${borderCol}`,borderRadius:10,marginBottom:6}},CE(“div”,{style:{width:7,height:7,borderRadius:“50%”,background:`${color}44`,flexShrink:0}}),CE(“div”,{style:{flex:1,fontSize:13,color:T.text}},t.label),CE(“div”,{onClick:()=>setTodayLocal(prev=>prev.filter(x=>x.id!==t.id)),style:{fontSize:18,color:T.sub,cursor:“pointer”,opacity:0.5,lineHeight:1}},”\xD7”)))
 ),
 CE(“div”,{style:{display:“flex”,gap:8,marginBottom:20}},CE(“input”,{placeholder:“e.g. Call Ahmed, Submit report\u2026”,value:newToday,onChange:e=>{if(e.target.value.length<=30)setNewToday(e.target.value);},onKeyDown:e=>e.key===“Enter”&&addTodayItem(),maxLength:30,style:{…inp(color,T),flex:1}}),CE(“button”,{onClick:addTodayItem,style:{background:`${color}22`,border:`1px solid ${color}44`,borderRadius:8,color,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:14,padding:“0 14px”}},”+”)),
@@ -1201,21 +1231,15 @@ const color=T.CAT.self.color;const{pressing,handlers}=useLongPress(onOpenSelf,60
 const[openId,setOpenId]=useState(null);const tapTimer=useRef({});const CE=React.createElement;
 function handleTap(id,onSingle,onDouble){if(tapTimer.current[id]){clearTimeout(tapTimer.current[id]);delete tapTimer.current[id];onDouble();}else{tapTimer.current[id]=setTimeout(()=>{delete tapTimer.current[id];onSingle();},220);}}
 const dow=new Date(day.date).getDay();
-const selfItems=(day.selfItems||[]).filter(s=>{
-const sched=selfHabitSchedule[s.habitId];
-return !sched||sched.length===0||sched.includes(dow);
-});
+const selfItems=(day.selfItems||[]).filter(s=>{const sched=selfHabitSchedule[s.habitId];return !sched||sched.length===0||sched.includes(dow);});
 const isRestDay=selfItems.length===0&&(day.selfItems||[]).length>0;
 return CE(“div”,{…handlers,style:{background:T.panelBg,backdropFilter:“blur(14px)”,borderRadius:14,padding:“12px 10px 10px”,border:`1px solid ${color}${T.isDark?"22":"33"}`,userSelect:“none”,minWidth:0,width:“100%”,boxSizing:“border-box”,overflow:“hidden”}},
 CE(“style”,null,”@keyframes fillBar{from{width:0%}to{width:100%}}”),
 CE(“div”,{style:{display:“flex”,justifyContent:“space-between”,alignItems:“center”,marginBottom:10,paddingLeft:2}},
-CE(“span”,{style:{fontSize:8,letterSpacing:3,color:pressing?color:`${color}${T.isDark?"99":"cc"}`,transition:“color 0.2s”}},“SELF”,streak>0&&CE(“span”,{style:{fontSize:7,letterSpacing:1,color:`${color}66`,fontStyle:“italic”,marginLeft:5,whiteSpace:“nowrap”}},“Day “,streak)),
-CE(“div”,{style:{display:“flex”,alignItems:“center”,gap:6}},CE(“div”,{style:{width:40,height:2,borderRadius:2,overflow:“hidden”,background:`${color}22`,opacity:pressing?1:0,transition:“opacity 0.15s”}},pressing&&CE(“div”,{style:{height:“100%”,background:color,animation:“fillBar 0.6s linear forwards”}})),CE(“div”,{style:{fontSize:7,color:T.sub,letterSpacing:1,opacity:pressing?1:0.4,transition:“opacity 0.2s”}},pressing?”\u23F3”:“hold”))
+CE(“span”,{style:{fontSize:8,letterSpacing:3,color:pressing?color:`${color}${T.isDark?"99":"cc"}`,transition:“color 0.2s”}},“SELF”,streak>0&&CE(“span”,{style:{fontSize:7,letterSpacing:1,color:`${color}66`,fontStyle:“italic”,marginLeft:5}},“Day “,streak)),
+CE(“div”,{style:{display:“flex”,alignItems:“center”,gap:6}},CE(“div”,{style:{width:40,height:2,borderRadius:2,overflow:“hidden”,background:`${color}22`,opacity:pressing?1:0,transition:“opacity 0.15s”}},pressing&&CE(“div”,{style:{height:“100%”,background:color,animation:“fillBar 0.6s linear forwards”}})),CE(“div”,{style:{fontSize:7,color:T.sub,letterSpacing:1,opacity:pressing?1:0.4}},pressing?”\u23F3”:“hold”))
 ),
-isRestDay&&CE(“div”,{style:{display:“flex”,alignItems:“center”,gap:8,background:T.tileBg,border:`1px solid ${T.tileBorder}`,borderRadius:7,padding:“7px 9px”,marginBottom:3,opacity:0.55}},
-CE(“div”,{style:{width:6,height:6,borderRadius:“50%”,background:T.dot}}),
-CE(“div”,{style:{fontSize:10,color:T.sub,letterSpacing:1}},”\uD83D\uDCA4 Rest Day”)
-),
+isRestDay&&CE(“div”,{style:{display:“flex”,alignItems:“center”,gap:8,background:T.tileBg,border:`1px solid ${T.tileBorder}`,borderRadius:7,padding:“7px 9px”,marginBottom:3,opacity:0.55}},CE(“div”,{style:{width:6,height:6,borderRadius:“50%”,background:T.dot}}),CE(“div”,{style:{fontSize:10,color:T.sub}},”\uD83D\uDCA4 Rest Day”)),
 !isRestDay&&selfItems.length===0&&CE(“div”,{style:{fontSize:10,color:T.sub,textAlign:“center”,padding:“16px 8px”,letterSpacing:1}},“Hold anywhere”,CE(“br”,null),“to choose habits”),
 selfItems.map(item=>{
 let habit=SELF_HABITS.find(h=>h.id===item.habitId);
@@ -1226,7 +1250,7 @@ return CE(“div”,{key:item.id,style:{marginBottom:4}},
 CE(“div”,{onClick:e=>{e.stopPropagation();handleTap(item.id,()=>togSelf(item.id),()=>hasLog&&setOpenId(p=>p===item.id?null:item.id));},style:{display:“flex”,alignItems:“center”,gap:8,background:item.done?`${color}1a`:T.tileBg,border:`1px solid ${item.done?`${color}${T.isDark?“55”:“77”}`:T.tileBorder}`,borderRadius:8,padding:“7px 9px”,cursor:“pointer”,transition:“all 0.2s”,overflow:“hidden”}},
 CE(“div”,{style:{width:7,height:7,borderRadius:“50%”,flexShrink:0,background:item.done?color:T.dot,boxShadow:item.done?`0 0 6px ${color}88`:“none”,transition:“all 0.3s”}}),
 CE(“div”,{style:{flex:1,minWidth:0}},
-CE(“div”,{style:{fontSize:11,fontWeight:“bold”,color:item.done?T.isDark?”#fff”:”#111”:T.isDark?“rgba(255,255,255,0.55)”:“rgba(0,0,0,0.45)”,letterSpacing:0.5,lineHeight:1.3,wordBreak:“break-word”,display:”-webkit-box”,WebkitLineClamp:2,WebkitBoxOrient:“vertical”,overflow:“hidden”}},habit.icon,” “,habit.label),
+CE(“div”,{style:{fontSize:11,fontWeight:“bold”,color:item.done?T.isDark?”#fff”:”#111”:T.isDark?“rgba(255,255,255,0.55)”:“rgba(0,0,0,0.45)”,letterSpacing:0.5,lineHeight:1.3,wordBreak:“break-word”}},habit.icon,” “,habit.label),
 !isOpen&&habit.log[0]&&item.data[habit.log[0].key]&&CE(“div”,{style:{fontSize:9,color:`${color}99`,marginTop:1,whiteSpace:“nowrap”,overflow:“hidden”,textOverflow:“ellipsis”}},item.data[habit.log[0].key])
 ),
 hasLog&&CE(“div”,{style:{fontSize:8,color:`${color}55`,flexShrink:0}},isOpen?”\u25B2”:”\u25BC”)
@@ -1242,29 +1266,13 @@ function SelfDrawer({selfHabitIds,selfHabitSchedule,onSave,onClose,T}){
 const{isDark,CAT}=T;const color=CAT.self.color;
 const validIds=selfHabitIds.filter(id=>id!==“custom”&&(!id.startsWith(“custom*”)||id.includes(”::”)));
 const[selected,setSelected]=useState(validIds);
-const[schedule,setSchedule]=useState(()=>{
-const s={};validIds.forEach(id=>{s[id]=selfHabitSchedule[id]||[];});return s;
-});
+const[schedule,setSchedule]=useState(()=>{const s={};validIds.forEach(id=>{s[id]=selfHabitSchedule[id]||[];});return s;});
 const[customItems,setCustomItems]=useState(()=>validIds.filter(id=>id.startsWith(“custom_”)).map(id=>({id,label:id.split(”::”)[1]})));
 const[showCustomInput,setShowCustomInput]=useState(false);const[customLabel,setCustomLabel]=useState(””);
 const overlayBg=isDark?“rgba(0,0,0,0.85)”:“rgba(0,0,0,0.5)”;const modalBg=isDark?”#0f0d0b”:”#fdfaf5”;const borderCol=isDark?“rgba(255,255,255,0.08)”:“rgba(0,0,0,0.1)”;
 const DAY_LABELS=[“Su”,“Mo”,“Tu”,“We”,“Th”,“Fr”,“Sa”];const CE=React.createElement;
-function toggle(id){
-if(id===“custom”){setShowCustomInput(true);return;}
-setSelected(prev=>{
-const next=prev.includes(id)?prev.filter(x=>x!==id):[…prev,id];
-if(!prev.includes(id)){setSchedule(s=>({…s,[id]:s[id]||[]}));}
-return next;
-});
-}
-function toggleDay(habitId,dow){
-setSchedule(prev=>{
-const cur=prev[habitId]||[];
-if(cur.length===0){return {…prev,[habitId]:[0,1,2,3,4,5,6].filter(d=>d!==dow)};}
-const next=cur.includes(dow)?cur.filter(d=>d!==dow):[…cur,dow].sort();
-return {…prev,[habitId]:next};
-});
-}
+function toggle(id){if(id===“custom”){setShowCustomInput(true);return;}setSelected(prev=>{const next=prev.includes(id)?prev.filter(x=>x!==id):[…prev,id];if(!prev.includes(id)){setSchedule(s=>({…s,[id]:s[id]||[]}));}return next;});}
+function toggleDay(habitId,dow){setSchedule(prev=>{const cur=prev[habitId]||[];if(cur.length===0){return {…prev,[habitId]:[0,1,2,3,4,5,6].filter(d=>d!==dow)};}const next=cur.includes(dow)?cur.filter(d=>d!==dow):[…cur,dow].sort();return {…prev,[habitId]:next};});}
 function setEveryday(habitId){setSchedule(prev=>({…prev,[habitId]:[]}));}
 function addCustom(){if(!customLabel.trim())return;const id=“custom_”+Date.now()+”::”+customLabel.trim();setCustomItems(prev=>[…prev,{id,label:customLabel.trim()}]);setSelected(prev=>[…prev,id]);setSchedule(prev=>({…prev,[id]:[]}));setCustomLabel(””);setShowCustomInput(false);}
 const baseHabits=SELF_HABITS.filter(h=>h.id!==“custom”);
@@ -1278,17 +1286,15 @@ CE(“button”,{onClick:onClose,style:{background:“none”,border:“none”,
 ),
 CE(“div”,{style:{display:“grid”,gridTemplateColumns:“repeat(4,1fr)”,gap:6,marginBottom:14,marginTop:14}},
 …baseHabits.map(h=>{const isOn=selected.includes(h.id);return CE(“div”,{key:h.id,onClick:()=>toggle(h.id),style:{background:isOn?`${color}22`:isDark?“rgba(255,255,255,0.04)”:“rgba(0,0,0,0.04)”,border:`1px solid ${isOn?color+"77":borderCol}`,borderRadius:10,padding:“8px 4px”,cursor:“pointer”,textAlign:“center”}},CE(“div”,{style:{fontSize:18,marginBottom:2}},h.icon),CE(“div”,{style:{fontSize:7,letterSpacing:0.5,color:isOn?color:T.sub,fontWeight:isOn?“bold”:“normal”,lineHeight:1.3}},h.label.toUpperCase()));}),
-…customItems.map(c=>{const isOn=selected.includes(c.id);return CE(“div”,{key:c.id,style:{position:“relative”}},CE(“div”,{onClick:()=>setSelected(prev=>prev.includes(c.id)?prev.filter(x=>x!==c.id):[…prev,c.id]),style:{background:isOn?`${color}22`:isDark?“rgba(255,255,255,0.04)”:“rgba(0,0,0,0.04)”,border:`1px solid ${isOn?color+"77":borderCol}`,borderRadius:10,padding:“8px 4px”,cursor:“pointer”,textAlign:“center”}},CE(“div”,{style:{fontSize:18,marginBottom:2}},”\u2B50”),CE(“div”,{style:{fontSize:7,letterSpacing:0.5,color:isOn?color:T.sub,fontWeight:isOn?“bold”:“normal”,lineHeight:1.3}},c.label.toUpperCase())),CE(“div”,{onClick:()=>{setCustomItems(prev=>prev.filter(x=>x.id!==c.id));setSelected(prev=>prev.filter(x=>x!==c.id));},style:{position:“absolute”,top:-5,right:-5,width:18,height:18,borderRadius:“50%”,background:isDark?”#333”:”#ddd”,border:`1px solid ${isDark?"#555":"#bbb"}`,display:“flex”,alignItems:“center”,justifyContent:“center”,fontSize:11,color:isDark?”#fff”:”#333”,cursor:“pointer”,fontWeight:“bold”,lineHeight:1}},”\xD7”));}),
-CE(“div”,{onClick:()=>setShowCustomInput(true),style:{background:“transparent”,border:`1px dashed ${color}${isDark?"44":"66"}`,borderRadius:10,padding:“8px 4px”,cursor:“pointer”,textAlign:“center”}},CE(“div”,{style:{fontSize:18,marginBottom:2}},”\uFF0B”),CE(“div”,{style:{fontSize:7,letterSpacing:0.5,color:`${color}88`,lineHeight:1.3}},“CUSTOM”))
+…customItems.map(c=>{const isOn=selected.includes(c.id);return CE(“div”,{key:c.id,style:{position:“relative”}},CE(“div”,{onClick:()=>setSelected(prev=>prev.includes(c.id)?prev.filter(x=>x!==c.id):[…prev,c.id]),style:{background:isOn?`${color}22`:isDark?“rgba(255,255,255,0.04)”:“rgba(0,0,0,0.04)”,border:`1px solid ${isOn?color+"77":borderCol}`,borderRadius:10,padding:“8px 4px”,cursor:“pointer”,textAlign:“center”}},CE(“div”,{style:{fontSize:18,marginBottom:2}},”\u2B50”),CE(“div”,{style:{fontSize:7,color:isOn?color:T.sub,fontWeight:isOn?“bold”:“normal”,lineHeight:1.3}},c.label.toUpperCase())),CE(“div”,{onClick:()=>{setCustomItems(prev=>prev.filter(x=>x.id!==c.id));setSelected(prev=>prev.filter(x=>x!==c.id));},style:{position:“absolute”,top:-5,right:-5,width:18,height:18,borderRadius:“50%”,background:isDark?”#333”:”#ddd”,display:“flex”,alignItems:“center”,justifyContent:“center”,fontSize:11,color:isDark?”#fff”:”#333”,cursor:“pointer”,fontWeight:“bold”}},”\xD7”));}),
+CE(“div”,{onClick:()=>setShowCustomInput(true),style:{background:“transparent”,border:`1px dashed ${color}${isDark?"44":"66"}`,borderRadius:10,padding:“8px 4px”,cursor:“pointer”,textAlign:“center”}},CE(“div”,{style:{fontSize:18,marginBottom:2}},”\uFF0B”),CE(“div”,{style:{fontSize:7,color:`${color}88`}},“CUSTOM”))
 ),
 showCustomInput&&CE(“div”,{style:{background:isDark?“rgba(255,255,255,0.05)”:“rgba(0,0,0,0.04)”,borderRadius:10,padding:12,marginBottom:12,border:`1px solid ${color}33`}},
-CE(“div”,{style:{display:“flex”,justifyContent:“space-between”,alignItems:“center”,marginBottom:8}},CE(“div”,{style:{fontSize:9,letterSpacing:2,color:T.sub}},“NAME YOUR HABIT”),CE(“div”,{style:{fontSize:9,color:customLabel.length>20?color:T.sub}},customLabel.length,”/25”)),
 CE(“input”,{autoFocus:true,placeholder:“e.g. Water Plants, Walk dog\u2026”,value:customLabel,onChange:e=>{if(e.target.value.length<=25)setCustomLabel(e.target.value);},onKeyDown:e=>e.key===“Enter”&&addCustom(),maxLength:25,style:{…inp(color,T),marginBottom:8}}),
-CE(“div”,{style:{display:“flex”,gap:6}},CE(“button”,{onClick:addCustom,style:{flex:1,background:`${color}22`,border:`1px solid ${color}55`,borderRadius:7,color,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:11,padding:“7px”,letterSpacing:1}},“ADD”),CE(“button”,{onClick:()=>{setShowCustomInput(false);setCustomLabel(””);},style:{flex:1,background:“transparent”,border:`1px solid ${borderCol}`,borderRadius:7,color:T.sub,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:11,padding:“7px”}},“CANCEL”))
+CE(“div”,{style:{display:“flex”,gap:6}},CE(“button”,{onClick:addCustom,style:{flex:1,background:`${color}22`,border:`1px solid ${color}55`,borderRadius:7,color,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:11,padding:“7px”}},“ADD”),CE(“button”,{onClick:()=>{setShowCustomInput(false);setCustomLabel(””);},style:{flex:1,background:“transparent”,border:`1px solid ${borderCol}`,borderRadius:7,color:T.sub,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:11,padding:“7px”}},“CANCEL”))
 ),
 selected.length>0&&CE(“div”,{style:{marginBottom:16}},
 CE(“div”,{style:{fontSize:9,letterSpacing:2,color:`${color}88`,marginBottom:10}},“SCHEDULE”),
-CE(“div”,{style:{fontSize:9,color:T.sub,letterSpacing:1,marginBottom:12}},“Everyday or pick specific days”),
 selected.map(id=>{
 let habit=SELF_HABITS.find(h=>h.id===id);
 if(!habit&&id.startsWith(“custom_”)){const label=id.includes(”::”)?id.split(”::”)[1]:id.replace(“custom_”,””);habit={id,label,icon:”\u2B50”};}
@@ -1297,7 +1303,7 @@ const sched=schedule[id]||[];const isEvery=sched.length===0;
 return CE(“div”,{key:id,style:{background:isDark?“rgba(255,255,255,0.04)”:“rgba(0,0,0,0.03)”,borderRadius:12,padding:“10px 12px”,marginBottom:8,border:`1px solid ${color}22`}},
 CE(“div”,{style:{display:“flex”,alignItems:“center”,justifyContent:“space-between”,marginBottom:8}},
 CE(“span”,{style:{fontSize:12,color:T.text,fontWeight:“bold”}},habit.icon,”  “,habit.label),
-CE(“button”,{onClick:()=>setEveryday(id),style:{background:isEvery?`${color}22`:“transparent”,border:`1px solid ${isEvery?color:borderCol}`,borderRadius:20,color:isEvery?color:T.sub,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:8,padding:“3px 10px”,letterSpacing:1}},isEvery?”\u2726 EVERYDAY”:“EVERYDAY”)
+CE(“button”,{onClick:()=>setEveryday(id),style:{background:isEvery?`${color}22`:“transparent”,border:`1px solid ${isEvery?color:borderCol}`,borderRadius:20,color:isEvery?color:T.sub,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:8,padding:“3px 10px”}},isEvery?”\u2726 EVERYDAY”:“EVERYDAY”)
 ),
 CE(“div”,{style:{display:“flex”,gap:4}},DAY_LABELS.map((dl,i)=>{
 const active=!isEvery&&sched.includes(i);
@@ -1306,12 +1312,13 @@ return CE(“button”,{key:i,onClick:()=>toggleDay(id,i),style:{flex:1,backgrou
 );
 })
 ),
-CE(“div”,{style:{fontSize:9,color:T.sub,letterSpacing:1,textAlign:“center”,marginBottom:16}},selected.length,” habit”,selected.length!==1?“s”:””,” selected”),
+CE(“div”,{style:{fontSize:9,color:T.sub,textAlign:“center”,marginBottom:16}},selected.length,” habit”,selected.length!==1?“s”:””,” selected”),
 CE(“button”,{onClick:()=>{onSave(selected,schedule);onClose();},style:{width:“100%”,background:`${color}22`,border:`1px solid ${color}55`,borderRadius:10,color,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:12,letterSpacing:2,padding:“12px”,fontWeight:“bold”}},“SAVE HABITS”)
 )
 )
 );
 }
+
 function FaithPanel({day,practice,ramzan,togF,tog,onOpenPicker,T,streak}){
 const color=T.CAT.faith.color;const{pressing,handlers}=useLongPress(onOpenPicker,600);
 const dk=dayKey(new Date(day.date));const[freezeTick,setFreezeTick]=useState(0);
@@ -1323,12 +1330,12 @@ return CE(“div”,{…handlers,style:{background:T.panelBg,backdropFilter:“b
 CE(“style”,null,”@keyframes fillBar{from{width:0%}to{width:100%}}”),
 CE(“div”,{style:{display:“flex”,justifyContent:“space-between”,alignItems:“center”,marginBottom:10,paddingLeft:2}},
 CE(“div”,{style:{display:“flex”,alignItems:“center”,gap:6}},
-CE(“span”,{style:{fontSize:8,letterSpacing:3,color:pressing?color:`${color}${T.isDark?"99":"cc"}`,transition:“color 0.2s”}},“FAITH”,streak>0&&CE(“span”,{style:{fontSize:7,letterSpacing:1,color:`${color}66`,fontStyle:“italic”,marginLeft:5,whiteSpace:“nowrap”}},“Day “,streak)),
+CE(“span”,{style:{fontSize:8,letterSpacing:3,color:pressing?color:`${color}${T.isDark?"99":"cc"}`,transition:“color 0.2s”}},“FAITH”,streak>0&&CE(“span”,{style:{fontSize:7,letterSpacing:1,color:`${color}66`,fontStyle:“italic”,marginLeft:5}},“Day “,streak)),
 CE(“span”,{style:{fontSize:7,color:T.isDark?“rgba(255,255,255,0.12)”:“rgba(0,0,0,0.15)”,fontStyle:“italic”,display:“flex”,alignItems:“center”,gap:3}},CE(“span”,null,practice.icon),CE(“span”,null,practice.label))
 ),
-CE(“div”,{style:{display:“flex”,alignItems:“center”,gap:6}},CE(“div”,{style:{width:40,height:2,borderRadius:2,overflow:“hidden”,background:`${color}22`,opacity:pressing?1:0,transition:“opacity 0.15s”}},pressing&&CE(“div”,{style:{height:“100%”,background:color,animation:“fillBar 0.6s linear forwards”}})),CE(“div”,{style:{fontSize:7,color:T.sub,letterSpacing:1,opacity:pressing?1:0.4,transition:“opacity 0.2s”}},pressing?”\u23F3”:“hold”))
+CE(“div”,{style:{display:“flex”,alignItems:“center”,gap:6}},CE(“div”,{style:{width:40,height:2,borderRadius:2,overflow:“hidden”,background:`${color}22`,opacity:pressing?1:0,transition:“opacity 0.15s”}},pressing&&CE(“div”,{style:{height:“100%”,background:color,animation:“fillBar 0.6s linear forwards”}})),CE(“div”,{style:{fontSize:7,color:T.sub,letterSpacing:1,opacity:pressing?1:0.4}},pressing?”\u23F3”:“hold”))
 ),
-freeze&&CE(“div”,{onClick:e=>e.stopPropagation(),style:{marginBottom:8,display:“flex”,justifyContent:“flex-end”}},CE(“button”,{onClick:unfreeze,style:{background:“transparent”,border:“none”,color:`${color}55`,cursor:“pointer”,fontSize:7,fontFamily:”‘Georgia’,serif”,letterSpacing:1,padding:0}},“unfreeze \xB7 today only”)),
+freeze&&CE(“div”,{onClick:e=>e.stopPropagation(),style:{marginBottom:8,display:“flex”,justifyContent:“flex-end”}},CE(“button”,{onClick:unfreeze,style:{background:“transparent”,border:“none”,color:`${color}55`,cursor:“pointer”,fontSize:7,fontFamily:”‘Georgia’,serif”,padding:0}},“unfreeze \xB7 today only”)),
 (day.faithItems||[]).map((f,idx)=>CE(“div”,{key:f.id,style:{marginBottom:4}},
 CE(“div”,{onClick:isFrozen(idx)?null:e=>{e.stopPropagation();togF(f.id);},style:{display:“flex”,alignItems:“center”,gap:8,background:f.done?`${color}1a`:T.tileBg,border:`1px solid ${f.done?`${color}${T.isDark?“55”:“77”}`:T.tileBorder}`,borderRadius:8,padding:“7px 9px”,cursor:isFrozen(idx)?“default”:“pointer”,transition:“all 0.2s”,opacity:isFrozen(idx)?0.35:1}},
 CE(“div”,{style:{width:7,height:7,borderRadius:“50%”,flexShrink:0,background:f.done?color:T.dot,boxShadow:f.done?`0 0 6px ${color}88`:“none”,transition:“all 0.3s”}}),
@@ -1349,8 +1356,8 @@ function submit(){if(!newName.trim())return;addAddiction(newName.trim());setNewN
 function handleRename(){if(!renameVal.trim()||!confirmId)return;renameAddiction(confirmId,renameVal.trim());setConfirmId(null);setRenaming(false);}
 return CE(“div”,{style:{background:T.panelBg,backdropFilter:“blur(14px)”,borderRadius:14,padding:“12px 14px”,border:`1px solid ${color}${T.isDark?"22":"33"}`,marginBottom:8}},
 CE(“div”,{style:{display:“flex”,justifyContent:“space-between”,alignItems:“center”,marginBottom:10}},
-CE(“span”,{style:{fontSize:8,letterSpacing:3,color:`${color}${T.isDark?"99":"cc"}`}},“DISCIPLINE”,streak>0&&CE(“span”,{style:{fontSize:7,letterSpacing:1,color:`${color}66`,fontStyle:“italic”,marginLeft:5,whiteSpace:“nowrap”}},“Day “,streak)),
-CE(“button”,{onClick:()=>setShowAdd(p=>!p),style:{background:`${color}18`,border:`1px solid ${color}33`,borderRadius:6,color,cursor:“pointer”,fontSize:9,padding:“4px 10px”,fontFamily:”‘Georgia’,serif”,letterSpacing:1}},showAdd?“cancel”:”+ add”)
+CE(“span”,{style:{fontSize:8,letterSpacing:3,color:`${color}${T.isDark?"99":"cc"}`}},“DISCIPLINE”,streak>0&&CE(“span”,{style:{fontSize:7,letterSpacing:1,color:`${color}66`,fontStyle:“italic”,marginLeft:5}},“Day “,streak)),
+CE(“button”,{onClick:()=>setShowAdd(p=>!p),style:{background:`${color}18`,border:`1px solid ${color}33`,borderRadius:6,color,cursor:“pointer”,fontSize:9,padding:“4px 10px”,fontFamily:”‘Georgia’,serif”}},showAdd?“cancel”:”+ add”)
 ),
 addictions.length===0&&!(day.toxins||[]).filter(t=>t.includes(”||”)).length&&!showAdd&&CE(“div”,{style:{fontSize:10,color:T.sub,letterSpacing:1,textAlign:“center”,padding:“8px 0”}},“Track what you’re letting go of”),
 addictions.map(a=>{
@@ -1359,8 +1366,8 @@ const todaySlips=(day.toxins||[]).filter(t=>t.startsWith(a.id+”||”)).map(t=>
 return CE(“div”,{key:a.id,style:{marginBottom:8,background:slippedToday?`${color}10`:T.isDark?“rgba(255,255,255,0.03)”:“rgba(0,0,0,0.02)”,border:`1px solid ${slippedToday?`${color}33`:T.tileBorder}`,borderRadius:10,padding:“10px 12px”,transition:“all 0.3s”}},
 CE(“div”,{style:{display:“flex”,alignItems:“center”,gap:10,marginBottom:todaySlips.length>0?8:0}},
 CE(“div”,{style:{textAlign:“center”,minWidth:36}},CE(“div”,{style:{fontSize:20,fontWeight:“bold”,color:slippedToday?color:a.streak>=7?T.CAT.self.color:T.CAT.fitness.color,lineHeight:1}},a.streak),CE(“div”,{style:{fontSize:7,color:T.sub,letterSpacing:1,marginTop:2}},“DAYS”)),
-CE(“div”,{style:{flex:1}},CE(“div”,{style:{fontSize:12,fontWeight:“bold”,color:T.text,letterSpacing:0.5}},a.name),CE(“div”,{style:{fontSize:9,color:slippedToday?color:`${T.CAT.self.color}99`,marginTop:2,letterSpacing:0.5}},todaySlips.length>0?`${todaySlips.length} slip${todaySlips.length>1?"s":""} today`:“clean today \u2726”)),
-CE(“button”,{onClick:()=>logSlip(a.id),style:{background:`${color}15`,border:`1px solid ${color}33`,borderRadius:7,color,cursor:“pointer”,fontSize:9,padding:“5px 10px”,fontFamily:”‘Georgia’,serif”,letterSpacing:1,flexShrink:0}},”+ slip”),
+CE(“div”,{style:{flex:1}},CE(“div”,{style:{fontSize:12,fontWeight:“bold”,color:T.text,letterSpacing:0.5}},a.name),CE(“div”,{style:{fontSize:9,color:slippedToday?color:`${T.CAT.self.color}99`,marginTop:2}},todaySlips.length>0?`${todaySlips.length} slip${todaySlips.length>1?"s":""} today`:“clean today \u2726”)),
+CE(“button”,{onClick:()=>logSlip(a.id),style:{background:`${color}15`,border:`1px solid ${color}33`,borderRadius:7,color,cursor:“pointer”,fontSize:9,padding:“5px 10px”,fontFamily:”‘Georgia’,serif”,flexShrink:0}},”+ slip”),
 CE(“div”,{onClick:()=>{setConfirmId(a.id);setRenaming(false);setRenameVal(a.name);},style:{fontSize:16,color:T.sub,cursor:“pointer”,opacity:0.3,padding:“0 2px”,lineHeight:1,flexShrink:0}},”\xD7”)
 ),
 todaySlips.length>0&&CE(“div”,{style:{display:“flex”,flexWrap:“wrap”,gap:4}},todaySlips.map((s,i)=>CE(“div”,{key:i,style:{background:`${color}18`,border:`1px solid ${color}44`,borderRadius:5,padding:“2px 8px”,fontSize:9,color}},s)))
@@ -1377,17 +1384,17 @@ confirmId&&confirmAddiction&&CE(“div”,{style:{position:“fixed”,inset:0,z
 CE(“div”,{style:{background:T.isDark?”#0f0d0b”:”#fdfaf5”,borderRadius:“20px 20px 0 0”,width:“100%”,maxWidth:480,padding:“24px 20px 40px”,border:`1px solid ${color}33`},onClick:e=>e.stopPropagation()},
 CE(“div”,{style:{width:36,height:4,borderRadius:2,background:T.isDark?“rgba(255,255,255,0.15)”:“rgba(0,0,0,0.15)”,margin:“0 auto 20px”}}),
 !renaming?CE(React.Fragment,null,
-CE(“div”,{style:{fontSize:16,fontWeight:“bold”,color:T.text,marginBottom:8,letterSpacing:0.5}},confirmAddiction.streak===0?“Walk away from this?”:confirmAddiction.streak<7?“You’re just getting started.”:confirmAddiction.streak<30?“Don’t quit on a good streak.”:“This took real discipline.”),
+CE(“div”,{style:{fontSize:16,fontWeight:“bold”,color:T.text,marginBottom:8}},confirmAddiction.streak===0?“Walk away from this?”:confirmAddiction.streak<7?“You’re just getting started.”:confirmAddiction.streak<30?“Don’t quit on a good streak.”:“This took real discipline.”),
 CE(“div”,{style:{display:“flex”,flexDirection:“column”,gap:8}},
 CE(“button”,{onClick:()=>{removeAddiction(confirmId);setConfirmId(null);},style:{width:“100%”,background:`${color}18`,border:`1px solid ${color}44`,borderRadius:10,color,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:12,padding:“12px”,letterSpacing:1}},“I’ve moved on. Remove it.”),
-CE(“button”,{onClick:()=>setRenaming(true),style:{width:“100%”,background:T.isDark?“rgba(255,255,255,0.06)”:“rgba(0,0,0,0.04)”,border:`1px solid ${T.isDark?"rgba(255,255,255,0.1)":"rgba(0,0,0,0.1)"}`,borderRadius:10,color:T.text,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:12,padding:“12px”,letterSpacing:1}},“Rename it instead”),
-CE(“button”,{onClick:()=>setConfirmId(null),style:{width:“100%”,background:“transparent”,border:“none”,color:T.sub,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:11,padding:“8px”,letterSpacing:1}},confirmAddiction.streak>0?“Keep the streak going”:“Not yet”)
+CE(“button”,{onClick:()=>setRenaming(true),style:{width:“100%”,background:T.isDark?“rgba(255,255,255,0.06)”:“rgba(0,0,0,0.04)”,border:`1px solid ${T.isDark?"rgba(255,255,255,0.1)":"rgba(0,0,0,0.1)"}`,borderRadius:10,color:T.text,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:12,padding:“12px”}},“Rename it instead”),
+CE(“button”,{onClick:()=>setConfirmId(null),style:{width:“100%”,background:“transparent”,border:“none”,color:T.sub,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:11,padding:“8px”}},confirmAddiction.streak>0?“Keep the streak going”:“Not yet”)
 )
 ):CE(React.Fragment,null,
-CE(“div”,{style:{fontSize:14,fontWeight:“bold”,color:T.text,marginBottom:6,letterSpacing:0.5}},“Rename it”),
+CE(“div”,{style:{fontSize:14,fontWeight:“bold”,color:T.text,marginBottom:6}},“Rename it”),
 CE(“input”,{autoFocus:true,value:renameVal,onChange:e=>{if(e.target.value.length<=20)setRenameVal(e.target.value);},onKeyDown:e=>e.key===“Enter”&&handleRename(),maxLength:20,style:{…inp(color,T),marginBottom:10}}),
 CE(“div”,{style:{display:“flex”,gap:8}},
-CE(“button”,{onClick:handleRename,style:{flex:1,background:`${color}22`,border:`1px solid ${color}44`,borderRadius:10,color,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:12,padding:“11px”,letterSpacing:1}},“Save”),
+CE(“button”,{onClick:handleRename,style:{flex:1,background:`${color}22`,border:`1px solid ${color}44`,borderRadius:10,color,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:12,padding:“11px”}},“Save”),
 CE(“button”,{onClick:()=>setRenaming(false),style:{flex:1,background:“transparent”,border:`1px solid ${T.border}`,borderRadius:10,color:T.sub,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:12,padding:“11px”}},“Back”)
 )
 )
@@ -1400,74 +1407,45 @@ const valStr=String(value);const fontSize=valStr.length>5?13:valStr.length>3?16:
 return CE(“div”,{style:{background:`${color}${T.isDark?"11":"18"}`,border:`1px solid ${color}${T.isDark?"33":"44"}`,borderRadius:10,padding:“10px 6px”,textAlign:“center”,minWidth:0}},
 CE(“div”,{style:{fontSize,fontWeight:“bold”,color:T.isDark?”#fff”:”#111”,lineHeight:1.2,wordBreak:“break-all”}},value),
 CE(“div”,{style:{fontSize:7,color:T.sub,marginTop:3,letterSpacing:1,whiteSpace:“nowrap”,overflow:“hidden”,textOverflow:“ellipsis”}},label),
-hint&&CE(“div”,{style:{fontSize:6,color:`${color}88`,marginTop:2,letterSpacing:0.3}},hint)
+hint&&CE(“div”,{style:{fontSize:6,color:`${color}88`,marginTop:2}},hint)
 );
 }
-function YearView({yearData,addictions,everyTasks,selfHabitSchedule,onOpenDay,onOpenMonth,T,practice,viewYear,setViewYear,recurringReminders=[]}){
-const todayKey=dateKey(today);
-const allPast=Object.entries(yearData).filter(([k])=>k<=todayKey).map(([,d])=>d).filter(Boolean);
-const avgScore=allPast.length?Math.round(allPast.reduce((a,d)=>a+getDayScore(d,practice,everyTasks,selfHabitSchedule),0)/allPast.length):0;
-const perfect=allPast.filter(d=>getDayScore(d,practice,everyTasks,selfHabitSchedule)===100&&!(d.toxins||[]).filter(t=>t.includes(”||”)).length).length;
-const slipCounts={};addictions.forEach(a=>{slipCounts[a.id]={id:a.id,name:a.name,count:0};});
-allPast.forEach(d=>{(d.toxins||[]).filter(t=>t.includes(”||”)).forEach(t=>{const parts=t.split(”||”);const id=parts[0];const nm=parts.length>=3?parts[1]:null;if(slipCounts[id])slipCounts[id].count++;else slipCounts[id]={id,name:nm||“Unknown”,count:1};});});
-const slipEntries=Object.values(slipCounts).filter(s=>s.count>0);
-const{CAT}=T;const lastTapRef=useRef(0);const totalSlips=slipEntries.reduce((a,s)=>a+s.count,0);
-const[showSlipDetail,setShowSlipDetail]=useState(false);const CE=React.createElement;
-function handleSlipTap(){const now=Date.now();if(now-lastTapRef.current<350)setShowSlipDetail(true);lastTapRef.current=now;}
-return CE(“div”,{style:{padding:“16px 12px 80px”}},
-CE(“div”,{style:{display:“flex”,justifyContent:“space-between”,alignItems:“center”,marginBottom:16}},
-CE(“button”,{onClick:()=>setViewYear(y=>y-1),style:{background:“none”,border:`1px solid ${T.border}`,borderRadius:8,color:T.sub,cursor:“pointer”,fontSize:18,width:36,height:36,display:“flex”,alignItems:“center”,justifyContent:“center”}},”\u2039”),
-CE(“span”,{style:{fontSize:13,letterSpacing:4,color:T.text}},viewYear),
-CE(“button”,{onClick:()=>setViewYear(y=>Math.min(CURRENT_YEAR+5,y+1)),style:{background:“none”,border:`1px solid ${T.border}`,borderRadius:8,color:viewYear>=CURRENT_YEAR+5?`${T.sub}33`:T.sub,cursor:viewYear>=CURRENT_YEAR+5?“default”:“pointer”,fontSize:18,width:36,height:36,display:“flex”,alignItems:“center”,justifyContent:“center”},disabled:viewYear>=CURRENT_YEAR+5},”\u203A”)
+
+function YearView({yearData,addictions,everyTasks,selfHabitSchedule,onOpenDay,onOpenMonth,T,practice,viewYear,setViewYear,recurringReminders}){
+const CE=React.createElement;const{CAT}=T;
+const months=Array.from({length:12},(*,m)=>{
+const days=[];const dim=new Date(viewYear,m+1,0).getDate();
+for(let d=1;d<=dim;d++){const date=new Date(viewYear,m,d);const key=dayKey(date);days.push({key,date,day:yearData[key]});}
+return{month:m,days};
+});
+const touched=getTouchedKeys();
+return CE(“div”,{style:{padding:“20px 12px 80px”}},
+CE(“div”,{style:{display:“flex”,justifyContent:“space-between”,alignItems:“center”,marginBottom:20}},
+CE(“button”,{onClick:()=>setViewYear(y=>y-1),style:{background:“transparent”,border:`1px solid ${T.border}`,borderRadius:8,color:T.sub,cursor:“pointer”,fontSize:18,width:34,height:34,display:“flex”,alignItems:“center”,justifyContent:“center”}},”\u2039”),
+CE(“div”,{style:{fontSize:24,fontWeight:“bold”,letterSpacing:4,color:T.text}},viewYear),
+CE(“button”,{onClick:()=>setViewYear(y=>Math.min(CURRENT_YEAR+5,y+1)),style:{background:“transparent”,border:`1px solid ${T.border}`,borderRadius:8,color:T.sub,cursor:“pointer”,fontSize:18,width:34,height:34,display:“flex”,alignItems:“center”,justifyContent:“center”}},”\u203A”)
 ),
-CE(“div”,{style:{display:“grid”,gridTemplateColumns:“1fr 1fr 1fr”,gap:8,marginBottom:20}},
-CE(Stat,{label:“Avg Score”,value:`${avgScore}%`,color:CAT.fitness.color,T}),
-CE(Stat,{label:“Perfect”,value:perfect,color:CAT.self.color,T}),
-CE(“div”,{onClick:handleSlipTap,style:{cursor:“pointer”}},CE(Stat,{label:`Slips${totalSlips>0?" \xB7\xB7 tap":""}`,value:totalSlips,color:CAT.toxins.color,T,hint:totalSlips>0?“double-tap for report”:null}))
-),
-showSlipDetail&&CE(“div”,{style:{position:“fixed”,inset:0,zIndex:1000,background:“rgba(0,0,0,0.85)”,display:“flex”,alignItems:“flex-end”,justifyContent:“center”},onClick:()=>setShowSlipDetail(false)},
-CE(“div”,{style:{background:T.isDark?”#0f0d0b”:”#fdfaf5”,borderRadius:“20px 20px 0 0”,width:“100%”,maxWidth:480,maxHeight:“80vh”,overflowY:“auto”,padding:“20px 18px 44px”,border:`1px solid ${CAT.toxins.color}33`},onClick:e=>e.stopPropagation()},
-CE(“div”,{style:{width:36,height:4,borderRadius:2,background:T.isDark?“rgba(255,255,255,0.15)”:“rgba(0,0,0,0.15)”,margin:“0 auto 20px”}}),
-CE(“div”,{style:{fontSize:14,fontWeight:“bold”,letterSpacing:3,color:T.text,marginBottom:4}},“SLIP REPORT \xB7 “,viewYear),
-CE(“div”,{style:{fontSize:10,color:T.sub,marginBottom:20,letterSpacing:1}},totalSlips,” total slip”,totalSlips!==1?“s”:””,” across “,slipEntries.length,” thing”,slipEntries.length!==1?“s”:””),
-slipEntries.length===0?CE(“div”,{style:{textAlign:“center”,color:T.sub,fontSize:12,padding:“30px 0”}},“No slips recorded this year \u2726”):
-slipEntries.map((s,i)=>{
-const pct=totalSlips?Math.round(s.count/totalSlips*100):0;
-return CE(“div”,{key:i,style:{marginBottom:16,paddingBottom:16,borderBottom:i<slipEntries.length-1?`1px solid ${T.border}`:“none”}},
-CE(“div”,{style:{display:“flex”,justifyContent:“space-between”,alignItems:“center”,marginBottom:8}},CE(“span”,{style:{fontSize:13,fontWeight:“bold”,color:T.text}},s.name),CE(“span”,{style:{fontSize:18,fontWeight:“bold”,color:CAT.toxins.color}},s.count)),
-CE(“div”,{style:{height:6,background:T.isDark?“rgba(255,255,255,0.06)”:“rgba(0,0,0,0.08)”,borderRadius:3,overflow:“hidden”}},CE(“div”,{style:{width:`${pct}%`,height:“100%”,background:CAT.toxins.color,borderRadius:3}})),
-CE(“div”,{style:{fontSize:9,color:T.sub,marginTop:4,letterSpacing:1}},pct,”% of total slips”)
-);
-}),
-CE(“button”,{onClick:()=>setShowSlipDetail(false),style:{width:“100%”,background:“transparent”,border:`1px solid ${T.border}`,borderRadius:10,color:T.sub,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:11,padding:“10px”,marginTop:8,letterSpacing:1}},“Close”)
-)
-),
-CE(“div”,{style:{fontSize:8,color:T.sub,letterSpacing:3,textAlign:“center”,marginBottom:14}},“TAP MONTH TO EXPAND \xB7 TAP DAY TO OPEN”),
-CE(“div”,{style:{display:“flex”,flexDirection:“column”,gap:16}},
-Array.from({length:12},(*,m)=>{
-const dim=new Date(viewYear,m+1,0).getDate(),fst=new Date(viewYear,m,1).getDay();
-const fut=viewYear===CURRENT_YEAR?m>today.getMonth():false;
-return CE(“div”,{key:m},
-CE(“div”,{onClick:()=>onOpenMonth(m),style:{display:“flex”,justifyContent:“space-between”,alignItems:“center”,marginBottom:6,cursor:“pointer”}},
-CE(“span”,{style:{fontSize:10,letterSpacing:3,color:fut?T.sub:T.text}},MONTH_NAMES[m].toUpperCase()),
-!fut&&CE(“span”,{style:{fontSize:8,color:T.sub}},”\u2192”)
+CE(“div”,{style:{display:“grid”,gridTemplateColumns:“1fr 1fr 1fr”,gap:10}},
+months.map(({month,days})=>{
+const todayK=dayKey(today);const firstDow=new Date(viewYear,month,1).getDay();
+const loggedDays=days.filter(d=>touched.includes(d.key));
+const perfDays=loggedDays.filter(d=>getDayScore(d.day,practice,everyTasks,selfHabitSchedule)===100).length;
+const monthName=MONTH_NAMES[month].slice(0,3).toUpperCase();
+const isCur=viewYear===CURRENT_YEAR&&month===today.getMonth();
+return CE(“div”,{key:month,style:{background:T.tileBg,border:`1px solid ${isCur?CAT.faith.color+"44":T.tileBorder}`,borderRadius:12,padding:“10px 8px”,cursor:“pointer”},onClick:()=>onOpenMonth(month)},
+CE(“div”,{style:{display:“flex”,justifyContent:“space-between”,alignItems:“center”,marginBottom:8}},
+CE(“span”,{style:{fontSize:10,letterSpacing:3,color:isCur?CAT.faith.color:T.text,fontWeight:isCur?“bold”:“normal”}},[monthName]),
+perfDays>0&&CE(“span”,{style:{fontSize:8,color:CAT.self.color}},perfDays,”\u2726”)
 ),
 CE(“div”,{style:{display:“grid”,gridTemplateColumns:“repeat(7,1fr)”,gap:2}},
-Array.from({length:fst}).map((*,i)=>CE(“div”,{key:`e${i}`})),
-Array.from({length:dim},(*,i)=>{
-const key=dateKey(new Date(viewYear,m,i+1));
-const isFut=viewYear>CURRENT_YEAR?false:key>todayKey;const isToday=key===todayKey;
-const bg=getDayBg(yearData[key],isFut,T.isDark,practice);const d=yearData[key];
-const hasNote=d?.note?.trim();const hasRem=(d?.plans||[]).length>0;const dow=new Date(key).getDay();
-const hasRec=recurringReminders.some(r=>r.freq===“daily”||r.freq===“weekly”&&(r.days||[]).includes(dow));
-return CE(“div”,{key,onClick:()=>onOpenDay(key),style:{background:bg,border:isToday?T.isDark?“1.5px solid rgba(255,255,255,0.8)”:“1.5px solid rgba(0,0,0,0.6)”:T.isDark?“1px solid rgba(255,255,255,0.04)”:“1px solid rgba(0,0,0,0.06)”,borderRadius:3,height:18,cursor:“pointer”,opacity:isFut?0.4:1,display:“flex”,flexDirection:“column”,alignItems:“center”,justifyContent:“center”,gap:1}},
-CE(“span”,{style:{fontSize:6,color:T.isDark?“rgba(255,255,255,0.6)”:“rgba(0,0,0,0.5)”}},i+1),
-(hasNote||hasRem||hasRec)&&CE(“div”,{style:{display:“flex”,gap:1}},
-hasNote&&CE(“div”,{style:{width:2,height:2,borderRadius:“50%”,background:“rgba(255,255,255,0.4)”}}),
-hasRem&&CE(“div”,{style:{width:2,height:2,borderRadius:“50%”,background:“rgba(255,200,50,0.7)”}}),
-hasRec&&CE(“div”,{style:{width:2,height:2,borderRadius:“50%”,background:“rgba(100,180,255,0.6)”}})
-)
-);
+Array(firstDow).fill(null).map((*,i)=>CE(“div”,{key:“e”+i,style:{height:8,borderRadius:2}})),
+days.map(({key,date,day})=>{
+const isToday=key===todayK;const isFuture=key>todayK;const isLogged=touched.includes(key);
+const score=isLogged&&day?getDayScore(day,practice,everyTasks,selfHabitSchedule):0;
+const hasSlip=day&&(day.toxins||[]).filter(t=>t.includes(”||”)).length>0;
+let bg=T.isDark?“rgba(255,255,255,0.04)”:“rgba(0,0,0,0.04)”;
+if(!isFuture&&isLogged){if(hasSlip)bg=`${CAT.toxins.color}55`;else if(score===100)bg=`${CAT.self.color}77`;else if(score>0)bg=`${CAT.fitness.color}${Math.round(score/100*120).toString(16).padStart(2,"0")}`;}
+return CE(“div”,{key:key,style:{height:8,borderRadius:2,background:bg,border:isToday?`1px solid ${CAT.faith.color}`:“none”,transition:“background 0.3s”}});
 })
 )
 );
@@ -1475,413 +1453,189 @@ hasRec&&CE(“div”,{style:{width:2,height:2,borderRadius:“50%”,background:
 )
 );
 }
-function MonthView({yearData,month,setMonth,onOpenDay,T,practice,everyTasks,selfHabitSchedule,viewYear,setViewYear,recurringReminders=[]}){
-const todayKey=dateKey(today);const dim=new Date(viewYear,month+1,0).getDate(),fst=new Date(viewYear,month,1).getDay();
-const monthDays=Array.from({length:dim},(*,i)=>({key:dateKey(new Date(viewYear,month,i+1)),day:yearData[dateKey(new Date(viewYear,month,i+1))],num:i+1}));
-const past=monthDays.filter(({key})=>key<=todayKey).map(({day})=>day).filter(Boolean);
-const avg=past.length?Math.round(past.reduce((a,d)=>a+getDayScore(d,practice,everyTasks,selfHabitSchedule),0)/past.length):0;
-const perf=past.filter(d=>getDayScore(d,practice,everyTasks,selfHabitSchedule)===100&&!(d.toxins||[]).filter(t=>t.includes(”||”)).length).length;
-const tox=past.reduce((a,d)=>a+(d.toxins||[]).filter(t=>t.includes(”||”)).length,0);
-const{CAT}=T;const CE=React.createElement;
-const arrowS={background:“transparent”,border:`1px solid ${T.isDark?"rgba(255,255,255,0.1)":"rgba(0,0,0,0.12)"}`,borderRadius:8,color:T.sub,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:20,padding:“2px 14px”};
-return CE(“div”,{style:{padding:“14px 12px 80px”}},
+function MonthView({yearData,month,setMonth,onOpenDay,T,practice,everyTasks,selfHabitSchedule,viewYear,setViewYear,recurringReminders}){
+const CE=React.createElement;const{CAT}=T;
+const firstDow=new Date(viewYear,month,1).getDay();const dim=new Date(viewYear,month+1,0).getDate();const todayK=dayKey(today);
+const touched=getTouchedKeys();
+const days=[];for(let d=1;d<=dim;d++){const date=new Date(viewYear,month,d);const key=dayKey(date);days.push({key,date,day:yearData[key]});}
+function prevMonth(){if(month===0){setViewYear(y=>y-1);setMonth(11);}else setMonth(m=>m-1);}
+function nextMonth(){if(month===11){setViewYear(y=>Math.min(CURRENT_YEAR+5,y+1));setMonth(0);}else setMonth(m=>m+1);}
+return CE(“div”,{style:{padding:“16px 12px 80px”}},
 CE(“div”,{style:{display:“flex”,justifyContent:“space-between”,alignItems:“center”,marginBottom:16}},
-CE(“button”,{onClick:()=>{if(month===0){setMonth(11);setViewYear(y=>y-1);}else setMonth(m=>m-1);},style:arrowS},”\u2039”),
-CE(“span”,{style:{fontSize:13,letterSpacing:4}},MONTH_NAMES[month].toUpperCase(),” “,viewYear),
-CE(“button”,{onClick:()=>{if(month===11){setMonth(0);setViewYear(y=>Math.min(CURRENT_YEAR+5,y+1));}else setMonth(m=>m+1);},style:arrowS},”\u203A”)
+CE(“button”,{onClick:prevMonth,style:{background:“transparent”,border:`1px solid ${T.border}`,borderRadius:8,color:T.sub,cursor:“pointer”,fontSize:18,width:36,height:36,display:“flex”,alignItems:“center”,justifyContent:“center”}},”\u2039”),
+CE(“div”,{style:{textAlign:“center”}},CE(“div”,{style:{fontSize:20,fontWeight:“bold”,letterSpacing:3,color:T.text}},MONTH_NAMES[month].toUpperCase()),CE(“div”,{style:{fontSize:9,letterSpacing:2,color:T.sub,marginTop:2}},viewYear)),
+CE(“button”,{onClick:nextMonth,style:{background:“transparent”,border:`1px solid ${T.border}`,borderRadius:8,color:T.sub,cursor:“pointer”,fontSize:18,width:36,height:36,display:“flex”,alignItems:“center”,justifyContent:“center”}},”\u203A”)
 ),
-CE(“div”,{style:{display:“grid”,gridTemplateColumns:“repeat(7,1fr)”,gap:3,marginBottom:6}},DAY_SHORT.map(d=>CE(“div”,{key:d,style:{textAlign:“center”,fontSize:8,color:T.sub,letterSpacing:1}},d))),
-CE(“div”,{style:{display:“grid”,gridTemplateColumns:“repeat(7,1fr)”,gap:3}},
-Array.from({length:fst}).map((*,i)=>CE(“div”,{key:`e${i}`})),
-monthDays.map(({key,day,num})=>{
-const isFut=key>todayKey&&viewYear===CURRENT_YEAR,isToday=key===todayKey;
-const bg=getDayBg(day,isFut,T.isDark,practice);const sc=getDayScore(day,practice,everyTasks,selfHabitSchedule);
-const hasNote=day?.note?.trim();const hasPlan=(day?.plans||[]).length>0;const dow=new Date(key).getDay();
-const hasRec=recurringReminders.some(r=>r.freq===“daily”||r.freq===“weekly”&&(r.days||[]).includes(dow));
-return CE(“div”,{key,onClick:()=>onOpenDay(key),style:{background:bg,border:isToday?T.isDark?“2px solid rgba(255,255,255,0.9)”:“2px solid rgba(0,0,0,0.65)”:T.isDark?“1px solid rgba(255,255,255,0.05)”:“1px solid rgba(0,0,0,0.07)”,borderRadius:8,padding:“7px 3px”,cursor:“pointer”,textAlign:“center”,opacity:isFut?0.4:1}},
-CE(“div”,{style:{fontSize:11,fontWeight:“bold”}},num),
-!isFut&&sc>0&&CE(“div”,{style:{fontSize:7,color:T.sub,marginTop:1}},sc,”%”),
-day&&(day.toxins||[]).filter(t=>t.includes(”||”)).length>0&&CE(“div”,{style:{fontSize:7,color:CAT.toxins.color}},”\xB7”,(day.toxins||[]).filter(t=>t.includes(”||”)).length),
-(hasNote||hasPlan||hasRec)&&CE(“div”,{style:{display:“flex”,justifyContent:“center”,gap:2,marginTop:2}},
-hasNote&&CE(“div”,{style:{width:3,height:3,borderRadius:“50%”,background:“rgba(255,255,255,0.4)”}}),
-hasPlan&&CE(“div”,{style:{width:3,height:3,borderRadius:“50%”,background:“rgba(255,200,50,0.7)”}}),
-hasRec&&CE(“div”,{style:{width:3,height:3,borderRadius:“50%”,background:“rgba(100,180,255,0.6)”}})
+CE(“div”,{style:{display:“grid”,gridTemplateColumns:“repeat(7,1fr)”,gap:4,marginBottom:8}},
+DAY_SHORT.map(d=>CE(“div”,{key:d,style:{textAlign:“center”,fontSize:8,letterSpacing:1,color:T.sub,padding:“4px 0”}},d))
+),
+CE(“div”,{style:{display:“grid”,gridTemplateColumns:“repeat(7,1fr)”,gap:4}},
+Array(firstDow).fill(null).map((_,i)=>CE(“div”,{key:“e”+i})),
+days.map(({key,date,day})=>{
+const isToday=key===todayK;const isFuture=key>todayK;const isLogged=touched.includes(key);
+const score=isLogged&&day?getDayScore(day,practice,everyTasks,selfHabitSchedule):0;
+const hasSlip=day&&(day.toxins||[]).filter(t=>t.includes(”||”)).length>0;
+const hasPlan=day&&(day.plans||[]).filter(p=>!p.done).length>0;
+const hasRecurring=recurringReminders&&recurringReminders.length>0;
+const bg=getDayBg(day,isFuture,T.isDark,practice);
+const borderColor=isToday?CAT.faith.color:hasSlip?`${CAT.toxins.color}44`:isLogged&&score===100?`${CAT.self.color}44`:T.tileBorder;
+return CE(“div”,{key,onClick:()=>onOpenDay(key),style:{background:bg,border:`1px solid ${borderColor}`,borderRadius:10,padding:“8px 4px”,textAlign:“center”,cursor:“pointer”,minHeight:52,position:“relative”,transition:“background 0.3s”}},
+(hasPlan||hasRecurring)&&!isFuture&&CE(“div”,{style:{position:“absolute”,top:3,right:3,width:4,height:4,borderRadius:“50%”,background:“rgba(255,200,50,0.7)”}}),
+CE(“div”,{style:{fontSize:14,fontWeight:isToday?“bold”:“normal”,color:isToday?CAT.faith.color:T.text,lineHeight:1}},date.getDate()),
+isLogged&&!isFuture&&CE(“div”,{style:{marginTop:4,display:“flex”,justifyContent:“center”}},
+hasSlip?CE(“div”,{style:{fontSize:9,color:CAT.toxins.color}},“slip”):score===100?CE(“div”,{style:{fontSize:11,color:CAT.self.color}},”\u2726”):score>0?CE(“div”,{style:{width:Math.round(score/100*22),height:3,borderRadius:2,background:score>=60?CAT.fitness.color:CAT.toxins.color,margin:“0 auto”}}):null
+),
+!isLogged&&!isFuture&&key<=todayK&&CE(“div”,{style:{marginTop:4,height:3}})
+);
+})
 )
 );
-})
-),
-CE(“div”,{style:{display:“grid”,gridTemplateColumns:“1fr 1fr 1fr”,gap:8,marginTop:20}},
-CE(Stat,{label:“Avg”,value:`${avg}%`,color:CAT.fitness.color,T}),
-CE(Stat,{label:“Perfect”,value:perf,color:CAT.self.color,T}),
-CE(Stat,{label:“Slips”,value:tox,color:CAT.toxins.color,T})
-),
-CE(“div”,{style:{marginTop:16,background:T.statBg,borderRadius:12,padding:14}},
-CE(“div”,{style:{fontSize:8,letterSpacing:3,color:T.sub,marginBottom:10}},practice.icon,” “,practice.label.toUpperCase(),” TRACK”),
-(practice.items||[]).map((p,idx)=>{
-const cnt=past.filter(d=>(d.faithItems||[]).find(f=>f.label===p&&f.done)).length;const pct=past.length?cnt/past.length:0;
-return CE(“div”,{key:idx,style:{display:“flex”,alignItems:“center”,gap:8,marginBottom:5}},
-CE(“span”,{style:{fontSize:9,color:T.sub,width:80,whiteSpace:“nowrap”,overflow:“hidden”,textOverflow:“ellipsis”}},p),
-CE(“div”,{style:{flex:1,height:4,background:T.isDark?“rgba(255,255,255,0.06)”:“rgba(0,0,0,0.08)”,borderRadius:2,overflow:“hidden”}},CE(“div”,{style:{width:`${pct*100}%`,height:“100%”,background:pct>=0.8?T.CAT.faith.color:T.CAT.toxins.color,borderRadius:2}})),
-CE(“span”,{style:{fontSize:9,color:T.sub,width:28,textAlign:“right”}},cnt,”/”,past.length)
-);
-})
-),
-(()=>{
-const workoutMap={};const mealDone=past.reduce((a,d)=>a+(d.meals||[]).filter(m=>m.done).length,0);const mealTotal=past.reduce((a,d)=>a+(d.meals||[]).length,0);
-past.forEach(d=>{(d.workoutSessions||[]).forEach(s=>{const label=s.typeId===“custom”&&s.customName?s.customName:(WORKOUT_PRESETS.find(p=>p.id===s.typeId)||WORKOUT_PRESETS[0]).label;if(!workoutMap[label])workoutMap[label]={done:0,total:0};workoutMap[label].total++;if(s.done)workoutMap[label].done++;});});
-const entries=Object.entries(workoutMap);if(entries.length===0&&mealTotal===0)return null;
-const color=CAT.fitness.color;
-return CE(“div”,{style:{marginTop:10,background:T.statBg,borderRadius:12,padding:14}},
-CE(“div”,{style:{fontSize:8,letterSpacing:3,color:T.sub,marginBottom:10}},”\u{1F4AA} FITNESS TRACK”),
-entries.map(([label,{done,total}],i)=>{const pct=total?done/total:0;return CE(“div”,{key:i,style:{display:“flex”,alignItems:“center”,gap:8,marginBottom:5}},CE(“span”,{style:{fontSize:9,color:T.sub,width:80,whiteSpace:“nowrap”,overflow:“hidden”,textOverflow:“ellipsis”}},label),CE(“div”,{style:{flex:1,height:4,background:T.isDark?“rgba(255,255,255,0.06)”:“rgba(0,0,0,0.08)”,borderRadius:2,overflow:“hidden”}},CE(“div”,{style:{width:`${pct*100}%`,height:“100%”,background:pct>=0.8?color:CAT.toxins.color,borderRadius:2}})),CE(“span”,{style:{fontSize:9,color:T.sub,width:28,textAlign:“right”}},done,”/”,total));}),
-mealTotal>0&&(()=>{const pct=mealTotal?mealDone/mealTotal:0;return CE(“div”,{style:{display:“flex”,alignItems:“center”,gap:8,marginBottom:5}},CE(“span”,{style:{fontSize:9,color:T.sub,width:80}},“Meals”),CE(“div”,{style:{flex:1,height:4,background:T.isDark?“rgba(255,255,255,0.06)”:“rgba(0,0,0,0.08)”,borderRadius:2,overflow:“hidden”}},CE(“div”,{style:{width:`${pct*100}%`,height:“100%”,background:pct>=0.8?color:CAT.toxins.color,borderRadius:2}})),CE(“span”,{style:{fontSize:9,color:T.sub,width:28,textAlign:“right”}},mealDone,”/”,mealTotal));})()
-);
-})(),
-(()=>{
-const everyMap={};let dailyDone=0,dailyTotal=0;
-past.forEach(d=>{(everyTasks||[]).forEach(t=>{if(!everyMap[t.label])everyMap[t.label]={done:0,total:0};everyMap[t.label].total++;if((d.everyDone||[]).includes(t.id))everyMap[t.label].done++;});const dt=d.todayTasks||[];dailyTotal+=dt.length;dailyDone+=dt.filter(t=>t.done).length;});
-const everyEntries=Object.entries(everyMap);if(everyEntries.length===0&&dailyTotal===0)return null;
-const color=CAT.work.color;
-const TrackRow=({label,done,total})=>{const pct=total?done/total:0;return CE(“div”,{style:{display:“flex”,alignItems:“center”,gap:8,marginBottom:5}},CE(“span”,{style:{fontSize:9,color:T.sub,width:80,whiteSpace:“nowrap”,overflow:“hidden”,textOverflow:“ellipsis”}},label),CE(“div”,{style:{flex:1,height:4,background:T.isDark?“rgba(255,255,255,0.06)”:“rgba(0,0,0,0.08)”,borderRadius:2,overflow:“hidden”}},CE(“div”,{style:{width:`${pct*100}%`,height:“100%”,background:pct>=0.8?color:CAT.toxins.color,borderRadius:2}})),CE(“span”,{style:{fontSize:9,color:T.sub,width:28,textAlign:“right”}},done,”/”,total));};
-return CE(“div”,{style:{marginTop:10,background:T.statBg,borderRadius:12,padding:14}},
-CE(“div”,{style:{fontSize:8,letterSpacing:3,color:T.sub,marginBottom:10}},”\u{1F4BC} WORK TRACK”),
-everyEntries.length>0&&CE(“div”,{style:{fontSize:7,letterSpacing:2,color:`${color}66`,marginBottom:6}},“EVERYDAY”),
-everyEntries.map(([label,{done,total}],i)=>CE(TrackRow,{key:i,label,done,total})),
-dailyTotal>0&&CE(“div”,{style:{fontSize:7,letterSpacing:2,color:`${color}44`,marginTop:everyEntries.length>0?8:0,marginBottom:6}},“DAILY”),
-dailyTotal>0&&CE(TrackRow,{label:“Tasks”,done:dailyDone,total:dailyTotal})
-);
-})()
-);
 }
-function hashPassword(pw){let h=0;for(let i=0;i<pw.length;i++){h=((h<<5)-h)+pw.charCodeAt(i);h|=0;}return h.toString(36);}
+
+async function hashPassword(pw){const enc=new TextEncoder().encode(pw);const buf=await crypto.subtle.digest(“SHA-256”,enc);return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,“0”)).join(””);}
 function getUsers(){try{return JSON.parse(localStorage.getItem(“doer_users”)||”[]”);}catch(e){return[];}}
 function saveUsers(u){localStorage.setItem(“doer_users”,JSON.stringify(u));}
-function getCurrentUser(){try{return JSON.parse(localStorage.getItem(“doer_session”)||“null”);}catch(e){return null;}}
-function setCurrentUser(u){localStorage.setItem(“doer_session”,JSON.stringify(u));}
-function doSignUp(name,age,gender,email,password){
-const users=getUsers();
-if(users.find(u=>u.email===email.toLowerCase().trim()))return{error:“Email already registered”};
-const user={id:“u*”+Date.now(),name:name.trim(),age:age?parseInt(age):null,gender:gender||null,email:email.toLowerCase().trim(),passwordHash:hashPassword(password),createdAt:new Date().toISOString()};
-users.push(user);saveUsers(users);setCurrentUser({id:user.id,name:user.name,email:user.email});return{user};
+function getCurrentUser(){try{return JSON.parse(localStorage.getItem(“doer_currentUser”)||“null”);}catch(e){return null;}}
+function setCurrentUser(u){localStorage.setItem(“doer_currentUser”,JSON.stringify(u));}
+async function doSignUp(name,email,pw){
+const h=await hashPassword(pw);const users=getUsers();
+if(users.find(u=>u.email===email.toLowerCase()))return{error:“Email already registered.”};
+const user={id:“u_”+Date.now(),name,email:email.toLowerCase(),pwHash:h,createdAt:new Date().toISOString()};
+saveUsers([…users,user]);setCurrentUser({id:user.id,name:user.name,email:user.email});return{user};
 }
-function doSignIn(email,password){
-const users=getUsers();const user=users.find(u=>u.email===email.toLowerCase().trim());
-if(!user)return{error:“No account found with this email”};
-if(user.passwordHash!==hashPassword(password))return{error:“Incorrect password”};
+async function doSignIn(email,pw){
+const h=await hashPassword(pw);const users=getUsers();
+const user=users.find(u=>u.email===email.toLowerCase()&&u.pwHash===h);
+if(!user)return{error:“Invalid email or password.”};
 setCurrentUser({id:user.id,name:user.name,email:user.email});return{user};
 }
-function doSignOut(){localStorage.removeItem(“doer_session”);}
-function doFullReset(){try{localStorage.clear();}catch(e){}window.location.href=window.location.href.split(”?”)[0]+”?reset=”+Date.now();}
-function hasCompletedOnboarding(uid){try{return JSON.parse(localStorage.getItem(“doer_ob_”+uid)||“false”);}catch(e){return false;}}
-function markOnboardingDone(uid){localStorage.setItem(“doer_ob_”+uid,“true”);}
-function hasSeenTooltips(uid){try{return JSON.parse(localStorage.getItem(“doer_tips2_”+uid)||“false”);}catch(e){return false;}}
-function markTooltipsSeen(uid){localStorage.setItem(“doer_tips2_”+uid,“true”);}
-function ResetButton({onReset}){
-const[confirm,setConfirm]=React.useState(false);
+function doSignOut(){localStorage.removeItem(“doer_currentUser”);}
+function doFullReset(){const keys=Object.keys(localStorage).filter(k=>k.startsWith(“doer_”));keys.forEach(k=>localStorage.removeItem(k));}
+function hasCompletedOnboarding(){return!!localStorage.getItem(“doer_onboarded”);}
+function markOnboardingDone(){localStorage.setItem(“doer_onboarded”,“1”);}
+function hasSeenTooltips(){return!!localStorage.getItem(“doer_tooltips_seen”);}
+function markTooltipsSeen(){localStorage.setItem(“doer_tooltips_seen”,“1”);}
+function ResetButton({T}){
+const[phase,setPhase]=useState(0);const CE=React.createElement;
+if(phase===0)return CE(“button”,{onClick:()=>setPhase(1),style:{background:“none”,border:`1px solid ${T.isDark?"rgba(255,255,255,0.06)":"rgba(0,0,0,0.08)"}`,borderRadius:8,color:T.sub,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:9,padding:“5px 12px”,opacity:0.5}},“reset app”);
+if(phase===1)return CE(“div”,{style:{display:“flex”,gap:8,alignItems:“center”}},CE(“span”,{style:{fontSize:9,color:T.sub}},“Delete all data?”),CE(“button”,{onClick:()=>{doFullReset();window.location.reload();},style:{background:“rgba(248,113,113,0.2)”,border:“1px solid rgba(248,113,113,0.5)”,borderRadius:8,color:”#f87171”,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:9,padding:“5px 12px”}},“yes, reset”),CE(“button”,{onClick:()=>setPhase(0),style:{background:“transparent”,border:“1px solid rgba(255,255,255,0.08)”,borderRadius:8,color:T.sub,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:9,padding:“5px 12px”}},“no”));
+return null;
+}
+function AuthScreen({onAuth,T}){
+const[mode,setMode]=useState(“signin”);const[name,setName]=useState(””);const[email,setEmail]=useState(””);const[pw,setPw]=useState(””);const[err,setErr]=useState(””);const[loading,setLoading]=useState(false);
 const CE=React.createElement;
-if(confirm){
-return CE(“div”,{style:{textAlign:“center”,marginTop:8}},
-CE(“div”,{style:{fontSize:10,color:“rgba(248,113,113,0.7)”,marginBottom:8,letterSpacing:0.5}},“All accounts & data on this device will be deleted.”),
-CE(“div”,{style:{display:“flex”,gap:8}},
-CE(“button”,{onClick:()=>setConfirm(false),style:{flex:1,background:“none”,border:“1px solid rgba(255,255,255,0.12)”,borderRadius:8,color:“rgba(255,255,255,0.4)”,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:10,padding:“8px”,letterSpacing:1}},“CANCEL”),
-CE(“button”,{onClick:onReset,style:{flex:1,background:“rgba(248,113,113,0.15)”,border:“1px solid rgba(248,113,113,0.35)”,borderRadius:8,color:”#f87171”,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:10,padding:“8px”,letterSpacing:1,fontWeight:“bold”}},“YES, RESET”)
+async function submit(){
+setErr(””);if(!email.trim()||!pw.trim())return setErr(“Please fill all fields.”);
+if(mode===“signup”&&!name.trim())return setErr(“Please enter your name.”);
+setLoading(true);
+const res=mode===“signup”?await doSignUp(name,email,pw):await doSignIn(email,pw);
+setLoading(false);
+if(res.error)return setErr(res.error);
+onAuth(res.user);
+}
+return CE(“div”,{style:{minHeight:“100vh”,background:T.isDark?”#0f0d0b”:”#fdfaf5”,display:“flex”,flexDirection:“column”,alignItems:“center”,justifyContent:“center”,padding:“20px”,fontFamily:”‘Georgia’,serif”}},
+CE(“div”,{style:{width:“100%”,maxWidth:380}},
+CE(“div”,{style:{textAlign:“center”,marginBottom:36}},CE(“div”,{style:{fontSize:42,fontWeight:“bold”,letterSpacing:6,color:T.text}},“DOER”),CE(“div”,{style:{fontSize:9,letterSpacing:4,color:T.sub,marginTop:4}},“a habit-aware calendar”)),
+CE(“div”,{style:{background:T.isDark?“rgba(255,255,255,0.04)”:“rgba(0,0,0,0.04)”,borderRadius:20,padding:“28px 24px”,border:`1px solid ${T.isDark?"rgba(255,255,255,0.08)":"rgba(0,0,0,0.1)"}`}},
+CE(“div”,{style:{display:“flex”,gap:4,marginBottom:24,background:T.isDark?“rgba(0,0,0,0.3)”:“rgba(0,0,0,0.06)”,borderRadius:10,padding:4}},
+[“signin”,“signup”].map(m=>CE(“button”,{key:m,onClick:()=>{setMode(m);setErr(””);},style:{flex:1,background:mode===m?T.isDark?“rgba(255,255,255,0.1)”:”#fff”:“transparent”,border:mode===m?`1px solid ${T.isDark?"rgba(255,255,255,0.15)":"rgba(0,0,0,0.1)"}`:none,borderRadius:7,color:mode===m?T.text:T.sub,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:11,letterSpacing:2,padding:“9px”}},m===“signin”?“SIGN IN”:“SIGN UP”))
+),
+mode===“signup”&&CE(“div”,{style:{marginBottom:12}},CE(“input”,{placeholder:“Your name”,value:name,onChange:e=>setName(e.target.value),style:{…inp(T.isDark?“rgba(255,255,255,0.3)”:“rgba(0,0,0,0.2)”,T),fontSize:14}})),
+CE(“div”,{style:{marginBottom:12}},CE(“input”,{type:“email”,placeholder:“Email”,value:email,onChange:e=>setEmail(e.target.value),style:{…inp(T.isDark?“rgba(255,255,255,0.3)”:“rgba(0,0,0,0.2)”,T),fontSize:14}})),
+CE(“div”,{style:{marginBottom:16}},CE(“input”,{type:“password”,placeholder:“Password”,value:pw,onChange:e=>setPw(e.target.value),onKeyDown:e=>e.key===“Enter”&&submit(),style:{…inp(T.isDark?“rgba(255,255,255,0.3)”:“rgba(0,0,0,0.2)”,T),fontSize:14}})),
+err&&CE(“div”,{style:{fontSize:11,color:”#f87171”,marginBottom:12,textAlign:“center”,lineHeight:1.5}},err),
+CE(“button”,{onClick:submit,disabled:loading,style:{width:“100%”,background:“rgba(200,169,110,0.2)”,border:“1px solid rgba(200,169,110,0.4)”,borderRadius:10,color:”#c8a96e”,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:12,letterSpacing:2,padding:“13px”,fontWeight:“bold”,opacity:loading?0.6:1}},loading?”…”:mode===“signin”?“SIGN IN”:“CREATE ACCOUNT”),
+CE(“div”,{style:{textAlign:“center”,marginTop:16}},CE(“button”,{onClick:()=>{markOnboardingDone();onAuth(null);},style:{background:“none”,border:“none”,color:T.sub,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:10,letterSpacing:1,opacity:0.5}},“continue without account”))
+),
+CE(“div”,{style:{textAlign:“center”,marginTop:24}},CE(ResetButton,{T}))
 )
 );
 }
-return CE(“div”,{style:{textAlign:“center”,marginTop:16}},
-CE(“button”,{onClick:()=>setConfirm(true),style:{background:“none”,border:“none”,color:“rgba(255,255,255,0.18)”,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:9,letterSpacing:1,textDecoration:“underline”,padding:4}},“clear device data & start fresh”)
-);
-}
-function AuthScreen({onAuth,onReset}){
-const[tab,setTab]=useState(“signin”);
-const[nm,setNm]=useState(””);const[ag,setAg]=useState(””);const[gn,setGn]=useState(””);
-const[em,setEm]=useState(””);const[pw,setPw]=useState(””);
-const[err,setErr]=useState(””);const[busy,setBusy]=useState(false);
-const CE=React.createElement;const gold=”#c8a96e”;
-const fld={background:“rgba(0,0,0,0.4)”,border:“1px solid rgba(255,255,255,0.1)”,borderRadius:8,color:”#f0ece4”,fontFamily:”‘Georgia’,serif”,fontSize:16,padding:“12px 14px”,width:“100%”,boxSizing:“border-box”,outline:“none”,marginBottom:10};
-function go(){
-setErr(””);setBusy(true);
-setTimeout(()=>{
-if(tab===“signup”){
-if(!nm.trim()||!em.trim()||!pw.trim()){setErr(“Name, email and password required”);setBusy(false);return;}
-if(pw.length<6){setErr(“Password must be at least 6 characters”);setBusy(false);return;}
-const r=doSignUp(nm,ag,gn,em,pw);
-if(r.error){setErr(r.error);setBusy(false);}else{onAuth(r.user);}
-}else{
-if(!em.trim()||!pw.trim()){setErr(“Email and password required”);setBusy(false);return;}
-const r=doSignIn(em,pw);
-if(r.error){setErr(r.error);setBusy(false);}else{onAuth(r.user);}
-}
-},300);
-}
-return CE(“div”,{style:{minHeight:“100vh”,background:”#000”,display:“flex”,flexDirection:“column”,alignItems:“center”,justifyContent:“center”,fontFamily:”‘Georgia’,serif”,padding:“20px”,position:“relative”}},
-CE(“div”,{style:{position:“absolute”,inset:0,background:“radial-gradient(ellipse at 50% 40%,rgba(60,20,5,0.45) 0%,#000 70%)”,pointerEvents:“none”}}),
-CE(“div”,{style:{width:“100%”,maxWidth:400,position:“relative”,zIndex:1}},
-CE(“div”,{style:{textAlign:“center”,marginBottom:44}},
-CE(“div”,{style:{fontSize:50,fontWeight:300,letterSpacing:22,color:“rgba(255,255,255,0.92)”,marginBottom:10,textIndent:22}},“DOER”),
-CE(“div”,{style:{width:24,height:“0.5px”,background:“rgba(255,255,255,0.18)”,margin:“0 auto 10px”}}),
-CE(“div”,{style:{fontSize:9,letterSpacing:4,color:“rgba(255,255,255,0.22)”,textTransform:“uppercase”}},“a habit-aware calendar”)
-),
-CE(“div”,{style:{display:“flex”,gap:4,marginBottom:22,background:“rgba(255,255,255,0.04)”,borderRadius:10,padding:4}},
-[“signin”,“signup”].map(t=>CE(“button”,{key:t,onClick:()=>{setTab(t);setErr(””);},style:{flex:1,background:tab===t?“rgba(255,255,255,0.1)”:“transparent”,border:“none”,borderRadius:7,color:tab===t?”#f0ece4”:“rgba(255,255,255,0.3)”,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:11,letterSpacing:2,padding:“10px”}},t===“signin”?“SIGN IN”:“SIGN UP”))
-),
-tab===“signup”&&CE(“input”,{placeholder:“Your name”,value:nm,onChange:e=>setNm(e.target.value),style:fld}),
-tab===“signup”&&CE(“div”,{style:{display:“flex”,gap:8}},
-CE(“input”,{placeholder:“Age (optional)”,value:ag,onChange:e=>setAg(e.target.value),type:“number”,style:{…fld,flex:1}}),
-CE(“select”,{value:gn,onChange:e=>setGn(e.target.value),style:{…fld,flex:1,appearance:“none”,color:gn?”#f0ece4”:“rgba(255,255,255,0.3)”}},
-CE(“option”,{value:””,disabled:true,hidden:true},“Gender”),CE(“option”,{value:“female”},“Female”),CE(“option”,{value:“male”},“Male”),CE(“option”,{value:“other”},“Other”)
-)
-),
-CE(“input”,{placeholder:“Email address”,value:em,onChange:e=>setEm(e.target.value),type:“email”,autoCapitalize:“none”,style:fld}),
-CE(“input”,{placeholder:“Password (min 6 chars)”,value:pw,onChange:e=>setPw(e.target.value),type:“password”,onKeyDown:e=>e.key===“Enter”&&go(),style:{…fld,marginBottom:4}}),
-err&&CE(“div”,{style:{fontSize:11,color:”#f87171”,marginBottom:10,textAlign:“center”,padding:“4px 0”}},err),
-CE(“button”,{onClick:go,disabled:busy,style:{width:“100%”,background:“rgba(200,169,110,0.18)”,border:“1px solid rgba(200,169,110,0.4)”,borderRadius:10,color:gold,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:12,letterSpacing:2,padding:“14px”,fontWeight:“bold”,marginTop:8}},busy?”…”:tab===“signin”?“SIGN IN”:“CREATE ACCOUNT”),
-CE(ResetButton,{onReset}),
-CE(“div”,{style:{fontSize:8,color:“rgba(255,255,255,0.11)”,textAlign:“center”,marginTop:26,letterSpacing:1,lineHeight:1.9}},“Your data stays on this device.”,CE(“br”,null),“Cloud sync coming soon.”)
-)
-);
-}
-function OnboardingFlow({user,onDone}){
-const[step,setStep]=useState(0);
-const[prac,setPrac]=useState(DEFAULT_PRACTICE);
-const[sids,setSids]=useState(DEFAULT_SELF_HABITS);
-const[adds,setAdds]=useState([]);
-const[newA,setNewA]=useState(””);
+function WelcomeStep({step,total,title,sub,children,onNext,onSkip,color=”#c8a96e”,T}){
 const CE=React.createElement;
-const gold=”#c8a96e”;const fc=”#7eb8c9”;const sc=”#6ee7b7”;const dc=”#f87171”;const N=5;
-function next(){if(step<N-1)setStep(s=>s+1);else onDone(prac,sids,{},[],adds);}
-function back(){if(step>0)setStep(s=>s-1);}
-const dots=CE(“div”,{style:{display:“flex”,gap:6,justifyContent:“center”,padding:“16px 0 2px”}},
-Array.from({length:N},(*,i)=>CE(“div”,{key:i,style:{width:i===step?20:6,height:6,borderRadius:3,background:i===step?gold:i<step?“rgba(200,169,110,0.4)”:“rgba(255,255,255,0.1)”,transition:“all 0.3s”}}))
+return CE(“div”,{style:{minHeight:“100vh”,background:T.isDark?”#0f0d0b”:”#fdfaf5”,display:“flex”,flexDirection:“column”,padding:“0 20px 40px”,fontFamily:”‘Georgia’,serif”}},
+CE(“div”,{style:{flex:1,display:“flex”,flexDirection:“column”,justifyContent:“center”}},
+CE(“div”,{style:{textAlign:“center”,marginBottom:32}},
+CE(“div”,{style:{display:“flex”,justifyContent:“center”,gap:8,marginBottom:24}},
+Array(total).fill(0).map((_,i)=>CE(“div”,{key:i,style:{width:i===step?24:6,height:6,borderRadius:3,background:i===step?color:`${color}33`,transition:“all 0.3s”}}))
+),
+CE(“div”,{style:{fontSize:28,fontWeight:“bold”,color:T.text,marginBottom:8,letterSpacing:1,lineHeight:1.3}},title),
+CE(“div”,{style:{fontSize:12,color:T.sub,letterSpacing:0.5,lineHeight:1.8,fontStyle:“italic”}},sub)
+),
+children&&CE(“div”,{style:{marginBottom:8}},children)
+),
+CE(“div”,{style:{display:“flex”,flexDirection:“column”,gap:10}},
+CE(“button”,{onClick:onNext,style:{width:“100%”,background:`${color}22`,border:`1px solid ${color}55`,borderRadius:12,color,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:12,letterSpacing:2,padding:“15px”,fontWeight:“bold”}},step===total-1?“LET’S GO \u2192”:“NEXT \u2192”),
+CE(“button”,{onClick:onSkip,style:{background:“none”,border:“none”,color:T.sub,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:10,letterSpacing:1,padding:“6px”,opacity:0.5}},step===total-1?””:“skip setup”)
+)
 );
-const panels=[
-CE(“div”,{style:{textAlign:“center”,padding:“4px 0”}},
-CE(“div”,{style:{fontSize:44,marginBottom:14}},”\uD83D\uDC4B”),
-CE(“div”,{style:{fontSize:26,fontWeight:“bold”,color:”#f0ece4”,letterSpacing:1,marginBottom:8}},“Welcome, “+user.name.split(” “)[0]),
-CE(“div”,{style:{fontSize:11,color:“rgba(255,255,255,0.35)”,lineHeight:1.9,marginBottom:20,letterSpacing:0.5}},“DOER is your personal habit calendar.\nTrack everything that matters, every day.”),
-[[“FITNESS”,”\uD83C\uDFCB\uFE0F”,”#c8a96e”,“log workouts & meals”],[“FAITH”,”\uD83C\uDF19”,”#7eb8c9”,“your daily practice”],[“WORK”,”\uD83D\uDCBC”,”#a78bfa”,“tasks & deep work”],[“SELF”,”\u2728”,”#6ee7b7”,“habits that matter”],[“DISCIPLINE”,”\uD83D\uDCAA”,”#f87171”,“releasing what holds you back”]].map(([lbl,icon,c,sub])=>
-CE(“div”,{key:lbl,style:{display:“flex”,alignItems:“center”,gap:12,background:“rgba(255,255,255,0.03)”,border:“1px solid rgba(255,255,255,0.05)”,borderRadius:10,padding:“10px 14px”,marginBottom:6,textAlign:“left”}},
-CE(“span”,{style:{fontSize:18,flexShrink:0}},icon),
-CE(“div”,null,CE(“div”,{style:{fontSize:10,fontWeight:“bold”,color:c,letterSpacing:2}},lbl),CE(“div”,{style:{fontSize:9,color:“rgba(255,255,255,0.28)”,marginTop:1}},sub))
+}
+function OnboardingFlow({onDone,T}){
+const[step,setStep]=useState(0);const[practice,setPractice]=useState(PRACTICE_PRESETS[0]);const[selfHabitIds,setSelfHabitIds]=useState(DEFAULT_SELF_HABITS);
+const CE=React.createElement;const TOTAL=3;
+function finish(){saveToStorage(“doer_practice”,practice);saveToStorage(“doer_selfHabitIds”,selfHabitIds);markOnboardingDone();onDone();}
+if(step===0)return CE(WelcomeStep,{step,total:TOTAL,title:“Welcome to DOER.”,sub:“A private, habit-aware calendar.\nNo ads. No streaks that shame you.\nJust clarity.”,onNext:()=>setStep(1),onSkip:finish,T});
+if(step===1)return CE(WelcomeStep,{step,total:TOTAL,title:“Your daily practice.”,sub:“Which practice guides your days?\nYou can always change this later.”,onNext:()=>setStep(2),onSkip:finish,color:T.CAT.faith.color,T},
+CE(“div”,{style:{display:“grid”,gridTemplateColumns:“repeat(3,1fr)”,gap:8}},
+PRACTICE_PRESETS.map(p=>CE(“div”,{key:p.id,onClick:()=>setPractice(p),style:{background:practice.id===p.id?`${T.CAT.faith.color}22`:T.isDark?“rgba(255,255,255,0.04)”:“rgba(0,0,0,0.04)”,border:`1px solid ${practice.id===p.id?T.CAT.faith.color+"77":T.isDark?"rgba(255,255,255,0.08)":"rgba(0,0,0,0.1)"}`,borderRadius:12,padding:“12px 8px”,cursor:“pointer”,textAlign:“center”}},CE(“div”,{style:{fontSize:24,marginBottom:4}},p.icon),CE(“div”,{style:{fontSize:8,letterSpacing:1,color:practice.id===p.id?T.CAT.faith.color:T.sub}},p.label.toUpperCase())))
 )
-)
-),
-CE(“div”,null,
-CE(“div”,{style:{fontSize:10,letterSpacing:3,color:fc,marginBottom:5}},“STEP 1 OF 3”),
-CE(“div”,{style:{fontSize:22,fontWeight:“bold”,color:”#f0ece4”,marginBottom:4}},“Your Faith Practice”),
-CE(“div”,{style:{fontSize:11,color:“rgba(255,255,255,0.35)”,marginBottom:18,letterSpacing:0.4}},“What do you practice daily? Change any time.”),
-CE(“div”,{style:{display:“grid”,gridTemplateColumns:“repeat(3,1fr)”,gap:8,marginBottom:14}},
-PRACTICE_PRESETS.map(p=>CE(“div”,{key:p.id,onClick:()=>setPrac(p),style:{background:prac.id===p.id?“rgba(126,184,201,0.14)”:“rgba(255,255,255,0.04)”,border:“1px solid “+(prac.id===p.id?fc:“rgba(255,255,255,0.08)”),borderRadius:12,padding:“12px 8px”,cursor:“pointer”,textAlign:“center”,transition:“all 0.15s”}},
-CE(“div”,{style:{fontSize:22,marginBottom:4}},p.icon),
-CE(“div”,{style:{fontSize:8,letterSpacing:1,color:prac.id===p.id?fc:“rgba(255,255,255,0.3)”,fontWeight:prac.id===p.id?“bold”:“normal”}},p.label.toUpperCase())
-))
-),
-prac.items.length>0&&CE(“div”,{style:{background:“rgba(126,184,201,0.06)”,border:“1px solid rgba(126,184,201,0.14)”,borderRadius:10,padding:“10px 12px”}},
-CE(“div”,{style:{fontSize:8,color:fc,letterSpacing:2,marginBottom:6}},“DAILY RITUALS”),
-CE(“div”,{style:{display:“flex”,flexWrap:“wrap”,gap:5}},prac.items.map((it,i)=>CE(“div”,{key:i,style:{background:“rgba(126,184,201,0.1)”,borderRadius:20,padding:“3px 10px”,fontSize:9,color:“rgba(255,255,255,0.6)”}},it)))
-)
-),
-CE(“div”,null,
-CE(“div”,{style:{fontSize:10,letterSpacing:3,color:sc,marginBottom:5}},“STEP 2 OF 3”),
-CE(“div”,{style:{fontSize:22,fontWeight:“bold”,color:”#f0ece4”,marginBottom:4}},“Self Care Habits”),
-CE(“div”,{style:{fontSize:11,color:“rgba(255,255,255,0.35)”,marginBottom:16,letterSpacing:0.4}},“Tap to select. You can adjust days later.”),
+);
+if(step===2)return CE(WelcomeStep,{step,total:TOTAL,title:“Self care habits.”,sub:“Pick 3-5 habits to track daily.\nYou can customise schedule later.”,onNext:finish,onSkip:finish,color:T.CAT.self.color,T},
 CE(“div”,{style:{display:“grid”,gridTemplateColumns:“repeat(4,1fr)”,gap:6}},
 SELF_HABITS.filter(h=>h.id!==“custom”).map(h=>{
-const on=sids.includes(h.id);
-return CE(“div”,{key:h.id,onClick:()=>setSids(p=>p.includes(h.id)?p.filter(x=>x!==h.id):[…p,h.id]),style:{background:on?“rgba(110,231,183,0.14)”:“rgba(255,255,255,0.04)”,border:“1px solid “+(on?sc:“rgba(255,255,255,0.08)”),borderRadius:10,padding:“8px 4px”,cursor:“pointer”,textAlign:“center”,transition:“all 0.15s”}},
-CE(“div”,{style:{fontSize:17,marginBottom:2}},h.icon),
-CE(“div”,{style:{fontSize:7,color:on?sc:“rgba(255,255,255,0.3)”,fontWeight:on?“bold”:“normal”,lineHeight:1.3}},h.label.toUpperCase())
-);
+const on=selfHabitIds.includes(h.id);
+return CE(“div”,{key:h.id,onClick:()=>setSelfHabitIds(prev=>prev.includes(h.id)?prev.filter(x=>x!==h.id):[…prev,h.id]),style:{background:on?`${T.CAT.self.color}22`:T.isDark?“rgba(255,255,255,0.04)”:“rgba(0,0,0,0.04)”,border:`1px solid ${on?T.CAT.self.color+"77":T.isDark?"rgba(255,255,255,0.08)":"rgba(0,0,0,0.1)"}`,borderRadius:10,padding:“8px 4px”,cursor:“pointer”,textAlign:“center”}},CE(“div”,{style:{fontSize:18,marginBottom:2}},h.icon),CE(“div”,{style:{fontSize:7,letterSpacing:0.5,color:on?T.CAT.self.color:T.sub,fontWeight:on?“bold”:“normal”}},h.label.toUpperCase()));
 })
-),
-CE(“div”,{style:{fontSize:9,color:“rgba(255,255,255,0.2)”,letterSpacing:1,textAlign:“center”,marginTop:10}},sids.length+” habits selected”)
-),
-CE(“div”,null,
-CE(“div”,{style:{fontSize:10,letterSpacing:3,color:dc,marginBottom:5}},“STEP 3 OF 3”),
-CE(“div”,{style:{fontSize:22,fontWeight:“bold”,color:”#f0ece4”,marginBottom:4}},“What Are You Releasing?”),
-CE(“div”,{style:{fontSize:11,color:“rgba(255,255,255,0.35)”,marginBottom:20,lineHeight:1.7,letterSpacing:0.4}},“Track habits you want to let go of. Name them anything \u2014 only you know what it means. You can skip this.”),
-adds.map((a,i)=>CE(“div”,{key:i,style:{display:“flex”,alignItems:“center”,gap:10,background:“rgba(248,113,113,0.07)”,border:“1px solid rgba(248,113,113,0.18)”,borderRadius:10,padding:“10px 14px”,marginBottom:8}},
-CE(“div”,{style:{flex:1,fontSize:13,color:”#f0ece4”}},a.name),
-CE(“div”,{onClick:()=>setAdds(p=>p.filter((*,j)=>j!==i)),style:{fontSize:16,color:“rgba(255,255,255,0.3)”,cursor:“pointer”}},”\xD7”)
-)),
-CE(“div”,{style:{display:“flex”,gap:8}},
-CE(“input”,{placeholder:“e.g. The Thing, Blue, Scrolling…”,value:newA,onChange:e=>setNewA(e.target.value),onKeyDown:e=>{if(e.key===“Enter”&&newA.trim()){setAdds(p=>[…p,makeAddiction(newA.trim())]);setNewA(””);}},style:{flex:1,background:“rgba(0,0,0,0.4)”,border:“1px solid rgba(248,113,113,0.2)”,borderRadius:8,color:”#f0ece4”,fontFamily:”‘Georgia’,serif”,fontSize:15,padding:“12px 14px”,outline:“none”}}),
-CE(“button”,{onClick:()=>{if(newA.trim()){setAdds(p=>[…p,makeAddiction(newA.trim())]);setNewA(””);}},style:{background:“rgba(248,113,113,0.12)”,border:“1px solid rgba(248,113,113,0.25)”,borderRadius:8,color:dc,cursor:“pointer”,fontSize:20,padding:“0 16px”,fontFamily:”‘Georgia’,serif”}},”+”)
-)
-),
-CE(“div”,{style:{textAlign:“center”,padding:“8px 0”}},
-CE(“div”,{style:{fontSize:50,marginBottom:18}},”\u2726”),
-CE(“div”,{style:{fontSize:26,fontWeight:“bold”,color:”#f0ece4”,letterSpacing:2,marginBottom:12}},“You’re all set”),
-CE(“div”,{style:{fontSize:12,color:“rgba(255,255,255,0.4)”,lineHeight:2,letterSpacing:0.5}},“DOER is ready. Your calendar starts today.”),
-CE(“div”,{style:{marginTop:22,background:“rgba(255,255,255,0.03)”,border:“1px solid rgba(255,255,255,0.06)”,borderRadius:14,padding:“16px”}},
-CE(“div”,{style:{fontSize:8,letterSpacing:3,color:“rgba(255,255,255,0.2)”,marginBottom:12}},“YOUR SETUP”),
-CE(“div”,{style:{display:“flex”,gap:10,alignItems:“center”,marginBottom:8}},CE(“span”,{style:{fontSize:16}},prac.icon),CE(“div”,null,CE(“div”,{style:{fontSize:10,color:“rgba(255,255,255,0.6)”}},prac.label),CE(“div”,{style:{fontSize:8,color:“rgba(255,255,255,0.25)”}},prac.items.length+” rituals”))),
-CE(“div”,{style:{display:“flex”,gap:10,alignItems:“center”,marginBottom:adds.length?8:0}},CE(“span”,{style:{fontSize:16}},”\u2728”),CE(“div”,null,CE(“div”,{style:{fontSize:10,color:“rgba(255,255,255,0.6)”}},“Self Care”),CE(“div”,{style:{fontSize:8,color:“rgba(255,255,255,0.25)”}},sids.length+” habits”))),
-adds.length>0&&CE(“div”,{style:{display:“flex”,gap:10,alignItems:“center”}},CE(“span”,{style:{fontSize:16}},”\uD83D\uDCAA”),CE(“div”,null,CE(“div”,{style:{fontSize:10,color:“rgba(255,255,255,0.6)”}},“Discipline”),CE(“div”,{style:{fontSize:8,color:“rgba(255,255,255,0.25)”}},adds.length+” tracker”+(adds.length!==1?“s”:””))))
-)
-)
-];
-return CE(“div”,{style:{minHeight:“100vh”,background:”#0a0603”,display:“flex”,flexDirection:“column”,fontFamily:”‘Georgia’,serif”}},
-dots,
-CE(“div”,{style:{flex:1,padding:“16px 20px 16px”,overflowY:“auto”}},panels[step]),
-CE(“div”,{style:{padding:“10px 20px 36px”,display:“flex”,gap:10}},
-step>0&&CE(“button”,{onClick:back,style:{flex:1,background:“transparent”,border:“1px solid rgba(255,255,255,0.1)”,borderRadius:10,color:“rgba(255,255,255,0.4)”,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:12,padding:“14px”,letterSpacing:1}},“BACK”),
-CE(“button”,{onClick:next,style:{flex:2,background:“rgba(200,169,110,0.18)”,border:“1px solid rgba(200,169,110,0.4)”,borderRadius:10,color:gold,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:12,letterSpacing:2,padding:“14px”,fontWeight:“bold”}},step===N-1?“OPEN DOER \u2192”:“NEXT \u2192”)
 )
 );
+return null;
 }
-function TooltipLayer({onDone}){
-const[step,setStep]=useState(0);
-const[rects,setRects]=useState({});
-const CE=React.createElement;
-
+function TooltipLayer({onDone,T}){
+const[idx,setIdx]=useState(0);const CE=React.createElement;
 const tips=[
-{panel:“fitness”, icon:”\uD83C\uDFCB\uFE0F”, cat:“FITNESS”,    color:”#c8a96e”,
-title:“Log workouts & meals”,
-body:“Tap once to mark done. Double-tap to log details. Hold the panel to set your weekly workout schedule.”},
-{panel:“faith”,   icon:”\uD83C\uDF19”,         cat:“FAITH”,      color:”#7eb8c9”,
-title:“Your daily practice”,
-body:“Tap each ritual to check it off. Hold the panel to change your practice. \u2744\uFE0F Freeze: hold any prayer when sick or travelling — streak stays protected.”},
-{panel:“work”,    icon:”\uD83D\uDCBC”,          cat:“WORK”,       color:”#a78bfa”,
-title:“Tasks & deep work”,
-body:“Hold the panel to add everyday recurring tasks. Type in the box to add one-off tasks for today only.”},
-{panel:“self”,    icon:”\u2728”,                 cat:“SELF”,       color:”#6ee7b7”,
-title:“Habits that matter”,
-body:“Hold the panel to choose habits and set which days each applies. Double-tap to log details.”},
-{panel:“discipline”,icon:”\uD83D\uDCAA”,        cat:“DISCIPLINE”, color:”#f87171”,
-title:“Releasing habits”,
-body:“Tap + Slip when you slip. Streak resets to zero. Name is private. Swipe left or right to move between days.”},
+{target:“doer-panel-fitness”,title:“FITNESS”,hint:“Tap dot to check off. Tap \u25BC for details. Hold the panel to manage schedule.”,color:T.CAT.fitness.color},
+{target:“doer-panel-faith”,title:“FAITH”,hint:“Tap each ritual to mark done. Hold the panel to change your practice.”,color:T.CAT.faith.color},
+{target:“doer-panel-work”,title:“WORK”,hint:“Hold the panel to add everyday tasks. Type in the box for today’s tasks.”,color:T.CAT.work.color},
+{target:“doer-panel-self”,title:“SELF”,hint:“Hold the panel to choose habits and set your schedule.”,color:T.CAT.self.color},
+{target:“doer-panel-discipline”,title:“DISCIPLINE”,hint:“Add what you’re releasing. Tap + slip if you slip. Streak resets automatically.”,color:T.CAT.toxins.color},
 ];
-
-// Measure all panels once on mount
-useEffect(()=>{
-const t=setTimeout(()=>{
-const r={};
-tips.forEach(tip=>{
-const el=document.getElementById(“doer-panel-”+tip.panel);
-if(el) r[tip.panel]=el.getBoundingClientRect();
-});
-setRects(r);
-},150);
-return()=>clearTimeout(t);
-},[]);
-
-const tip=tips[step];
-const rect=rects[tip.panel];
-
-function next(){
-if(step<tips.length-1) setStep(s=>s+1);
-else onDone();
-}
-
-if(!rect) return CE(“div”,{style:{position:“fixed”,inset:0,zIndex:8000,background:“rgba(0,0,0,0.6)”,pointerEvents:“none”}});
-
-// Clamp top so card never goes off screen bottom
-const VH=window.innerHeight;
-const isHalf=rect.width<250;
-const estCardH=isHalf?210:180;
-const clampedTop=Math.min(rect.top, VH - estCardH - 16);
-const finalTop=Math.max(clampedTop, 80);
-
-// Card sits EXACTLY on top of the panel — same left, width, clamped top
-const cardStyle={
-position:“fixed”,
-left:rect.left,
-top:finalTop,
-width:rect.width,
-minHeight:rect.height,
-background:”#0f0d0b”,
-borderRadius:14,
-padding:“10px 10px 8px”,
-border:“1px solid “+tip.color+“55”,
-boxShadow:“0 0 0 2px “+tip.color+“33, 0 8px 32px rgba(0,0,0,0.95)”,
-display:“flex”,
-flexDirection:“column”,
-justifyContent:“space-between”,
-zIndex:8001,
-boxSizing:“border-box”,
-overflow:“hidden”,
-};
-
-// Font sizes scaled to panel width (half-width panels are ~160px)
-const iconSz=isHalf?20:32;
-const catSz=isHalf?7:9;
-const titleSz=isHalf?11:16;
-const bodySz=isHalf?9:12;
-const btnSz=isHalf?9:11;
-
-return CE(“div”,{style:{position:“fixed”,inset:0,zIndex:8000,pointerEvents:“none”}},
-// Dim overlay — non-blocking so previous panels stay usable
-CE(“div”,{style:{position:“absolute”,inset:0,background:“rgba(0,0,0,0.72)”,pointerEvents:“none”}}),
-// The card on top of the panel
-CE(“div”,{style:{…cardStyle,pointerEvents:“all”},onClick:e=>e.stopPropagation()},
-// Progress dots
-CE(“div”,{style:{display:“flex”,gap:3,justifyContent:“center”,marginBottom:6}},
-tips.map((_,i)=>CE(“div”,{key:i,style:{
-width:i===step?12:3,height:3,borderRadius:2,
-background:i===step?tip.color:i<step?tip.color+“55”:“rgba(255,255,255,0.1)”,
-transition:“all 0.3s”
-}}))
-),
-// Icon
-CE(“div”,{style:{fontSize:iconSz,textAlign:“center”,marginBottom:4,lineHeight:1}},tip.icon),
-// Category
-CE(“div”,{style:{fontSize:catSz,letterSpacing:2,color:tip.color,textAlign:“center”,marginBottom:3}},tip.cat),
-// Title
-CE(“div”,{style:{fontSize:titleSz,fontWeight:“bold”,color:”#f0ece4”,textAlign:“center”,marginBottom:6,lineHeight:1.3}},tip.title),
-// Body
-CE(“div”,{style:{fontSize:bodySz,color:“rgba(255,255,255,0.5)”,textAlign:“center”,lineHeight:1.6,flex:1}},tip.body),
-// Button
-CE(“button”,{
-onClick:next,
-style:{
-width:“100%”,
-marginTop:8,
-background:tip.color+“18”,
-border:“1px solid “+tip.color+“44”,
-borderRadius:8,
-color:tip.color,
-cursor:“pointer”,
-fontFamily:”‘Georgia’,serif”,
-fontSize:btnSz,
-letterSpacing:2,
-padding:isHalf?“7px”:“11px”,
-fontWeight:“bold”,
-pointerEvents:“all”,
-}
-},step<tips.length-1?“NEXT \u2192”:“GOT IT \u2726”)
+const tip=tips[idx];
+function next(){if(idx<tips.length-1)setIdx(idx+1);else{markTooltipsSeen();onDone();}}
+const el=document.getElementById(tip.target);const rect=el?el.getBoundingClientRect():null;
+return CE(“div”,{style:{position:“fixed”,inset:0,zIndex:9000,background:“rgba(0,0,0,0.7)”},onClick:next},
+rect&&CE(“div”,{style:{position:“fixed”,top:rect.top-4,left:rect.left-4,width:rect.width+8,height:rect.height+8,border:`2px solid ${tip.color}`,borderRadius:18,boxShadow:`0 0 0 9999px rgba(0,0,0,0.7)`,pointerEvents:“none”}}),
+CE(“div”,{style:{position:“fixed”,bottom:80,left:20,right:20,background:T.isDark?”#1a1208”:”#fff”,border:`1px solid ${tip.color}44`,borderRadius:16,padding:“20px 18px”},onClick:e=>e.stopPropagation()},
+CE(“div”,{style:{fontSize:11,fontWeight:“bold”,letterSpacing:3,color:tip.color,marginBottom:6}},tip.title),
+CE(“div”,{style:{fontSize:13,color:T.text,lineHeight:1.7,marginBottom:14}},tip.hint),
+CE(“div”,{style:{display:“flex”,justifyContent:“space-between”,alignItems:“center”}},
+CE(“div”,{style:{fontSize:9,color:T.sub}},idx+1,” of “,tips.length),
+CE(“button”,{onClick:next,style:{background:`${tip.color}22`,border:`1px solid ${tip.color}55`,borderRadius:10,color:tip.color,cursor:“pointer”,fontFamily:”‘Georgia’,serif”,fontSize:11,padding:“8px 16px”}},idx<tips.length-1?“NEXT \u2192”:“GOT IT \u2726”)
+)
 )
 );
 }
-
 function Root(){
-const[resetKey,setResetKey]=useState(0);
-const[initialData,setInitialData]=useState(()=>loadInitialData());
-const[cu,setCu]=useState(()=>getCurrentUser());
-const[ob,setOb]=useState(()=>{const u=getCurrentUser();return u?hasCompletedOnboarding(u.id):false;});
-const[tips,setTips]=useState(false);
-function handleAuth(user){setCu(user);setOb(hasCompletedOnboarding(user.id));}
-function handleDone(prac,sids,sched,ws,adds){
-saveToStorage(“doer_practice”,prac);
-saveToStorage(“doer_selfHabitIds”,sids);
-saveToStorage(“doer_selfHabitSchedule”,sched);
-saveToStorage(“doer_addictions”,adds);
-markOnboardingDone(cu.id);
-setOb(true);
-if(!hasSeenTooltips(cu.id))setTips(true);
-}
-function handleSignOut(){doSignOut();setCu(null);setOb(false);setTips(false);}
-if(!cu)return React.createElement(AuthScreen,{onAuth:handleAuth,onReset:()=>doFullReset()});
-if(!ob)return React.createElement(OnboardingFlow,{user:cu,onDone:handleDone});
-return React.createElement(React.Fragment,null,
-tips&&React.createElement(TooltipLayer,{onDone:()=>{markTooltipsSeen(cu.id);setTips(false);}}),
-React.createElement(App,{initialData,currentUser:cu,onSignOut:handleSignOut})
+const[phase,setPhase]=useState(“loading”);const[currentUser,setCurrentUser2]=useState(null);
+const isDarkInit=loadFromStorage(“doer_isDark”)!==null?loadFromStorage(“doer_isDark”):true;
+const T_INIT={isDark:isDarkInit,CAT:isDarkInit?CAT_DARK:CAT_LIGHT,text:isDarkInit?”#f0ece4”:”#1a1208”,sub:isDarkInit?“rgba(255,255,255,0.35)”:“rgba(30,20,5,0.4)”};
+const[showTooltip,setShowTooltip]=useState(false);
+useEffect(()=>{
+const user=getCurrentUser();
+if(user)setCurrentUser2(user);
+if(!hasCompletedOnboarding()){setPhase(“onboarding”);}
+else{setPhase(“app”);if(!hasSeenTooltips())setTimeout(()=>setShowTooltip(true),1500);}
+},[]);
+const CE=React.createElement;
+if(phase===“loading”)return CE(“div”,{style:{minHeight:“100vh”,background:”#0f0d0b”}});
+if(phase===“onboarding”)return CE(OnboardingFlow,{onDone:()=>{setPhase(“app”);setTimeout(()=>setShowTooltip(true),1500);},T:T_INIT});
+const initialData=loadInitialData();
+return CE(React.Fragment,null,
+CE(App,{initialData,currentUser,onSignOut:()=>{doSignOut();setCurrentUser2(null);}}),
+showTooltip&&CE(TooltipLayer,{onDone:()=>setShowTooltip(false),T:{isDark:initialData.isDark,CAT:initialData.isDark?CAT_DARK:CAT_LIGHT,text:initialData.isDark?”#f0ece4”:”#1a1208”,sub:initialData.isDark?“rgba(255,255,255,0.35)”:“rgba(30,20,5,0.4)”}})
 );
 }
-
 ReactDOM.createRoot(document.getElementById(“root”)).render(React.createElement(Root));
+</script>
 
-  </script>
-  <script>if(window.navigator.standalone){document.addEventListener('touchend',function(e){var el=e.target;if(el.tagName==='INPUT'||el.tagName==='TEXTAREA'){setTimeout(function(){el.focus();},50);}},false);}</script>
 </body>
 </html>
