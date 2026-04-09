@@ -521,9 +521,9 @@ const CATS=[
 ];
 function RadarChart(){
 const W=260,H=260,cx=130,cy=130,R=100,n=5;
-const ang=CATS.map((*,i)=>-Math.PI/2+i*2*Math.PI/n);
+const ang=CATS.map((_,i)=>-Math.PI/2+i*2*Math.PI/n);
 function pt(r,i){return[cx+r*Math.cos(ang[i]),cy+r*Math.sin(ang[i])];}
-const rings=[0.25,0.5,0.75,1].map(f=>CE(“polygon”,{key:f,points:ang.map((*,i)=>pt(R*f,i).join(”,”)).join(” “),fill:“none”,stroke:`rgba(255,255,255,${f===1?0.08:0.04})`,strokeWidth:1}));
+const rings=[0.25,0.5,0.75,1].map(f=>CE(“polygon”,{key:f,points:ang.map((_,i)=>pt(R*f,i).join(”,”)).join(” “),fill:“none”,stroke:`rgba(255,255,255,${f===1?0.08:0.04})`,strokeWidth:1}));
 const spokes=ang.map((_,i)=>{const[x,y]=pt(R,i);return CE(“line”,{key:i,x1:cx,y1:cy,x2:x,y2:y,stroke:“rgba(255,255,255,0.05)”,strokeWidth:1});});
 const ghostPts=prevScores?CATS.map((c,i)=>pt(R*(prevScores[c.key]||0)/100,i).join(”,”)).join(” “):null;
 const curPts=CATS.map((c,i)=>pt(R*scores[c.key]/100,i).join(”,”)).join(” “);
@@ -1413,7 +1413,7 @@ hint&&CE(“div”,{style:{fontSize:6,color:`${color}88`,marginTop:2}},hint)
 
 function YearView({yearData,addictions,everyTasks,selfHabitSchedule,onOpenDay,onOpenMonth,T,practice,viewYear,setViewYear,recurringReminders}){
 const CE=React.createElement;const{CAT}=T;
-const months=Array.from({length:12},(*,m)=>{
+const months=Array.from({length:12},(_,m)=>{
 const days=[];const dim=new Date(viewYear,m+1,0).getDate();
 for(let d=1;d<=dim;d++){const date=new Date(viewYear,m,d);const key=dayKey(date);days.push({key,date,day:yearData[key]});}
 return{month:m,days};
@@ -1438,7 +1438,7 @@ CE(“span”,{style:{fontSize:10,letterSpacing:3,color:isCur?CAT.faith.color:T.
 perfDays>0&&CE(“span”,{style:{fontSize:8,color:CAT.self.color}},perfDays,”\u2726”)
 ),
 CE(“div”,{style:{display:“grid”,gridTemplateColumns:“repeat(7,1fr)”,gap:2}},
-Array(firstDow).fill(null).map((*,i)=>CE(“div”,{key:“e”+i,style:{height:8,borderRadius:2}})),
+Array(firstDow).fill(null).map((_,i)=>CE(“div”,{key:“e”+i,style:{height:8,borderRadius:2}})),
 days.map(({key,date,day})=>{
 const isToday=key===todayK;const isFuture=key>todayK;const isLogged=touched.includes(key);
 const score=isLogged&&day?getDayScore(day,practice,everyTasks,selfHabitSchedule):0;
