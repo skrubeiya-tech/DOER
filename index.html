@@ -1243,7 +1243,7 @@ isRestDay&&CE("div",{style:{display:"flex",alignItems:"center",gap:8,background:
 !isRestDay&&selfItems.length===0&&CE("div",{style:{fontSize:10,color:T.sub,textAlign:"center",padding:"16px 8px",letterSpacing:1}},"Hold anywhere",CE("br",null),"to choose habits"),
 selfItems.map(item=>{
 let habit=SELF_HABITS.find(h=>h.id===item.habitId);
-if(!habit&&item.habitId.startsWith("custom_")){const label=item.habitId.includes("::")?item.habitId.split("::")[1]:item.habitId.replace("custom_","").replace(/\d+$/,"").replace(/*/g," ");habit={id:item.habitId,label,icon:"\u2B50",log:[{key:"note",placeholder:"Log anything\u2026",multiline:true}]};}
+if(!habit&&item.habitId.startsWith("custom_")){const label=item.habitId.includes("::")?item.habitId.split("::")[1]:item.habitId.replace("custom_","").replace(/\d+$/,"").replace(/\*/g," ");habit={id:item.habitId,label,icon:"\u2B50",log:[{key:"note",placeholder:"Log anything\u2026",multiline:true}]};}
 if(!habit)habit=SELF_HABITS[SELF_HABITS.length-1];
 const isOpen=openId===item.id;const hasLog=habit.log&&habit.log.length>0;
 return CE("div",{key:item.id,style:{marginBottom:4}},
