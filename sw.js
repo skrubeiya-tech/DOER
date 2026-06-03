@@ -1,4 +1,4 @@
-// DOER Service Worker — network-first, always fetches latest HTML
+// DOER Service Worker — network-first for HTML/JS, passthrough for cross-origin (Supabase, etc.)
 const VERSION = 'doer-v' + Date.now();
 
 self.addEventListener('install', (e) => {
@@ -15,31 +15,22 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  // Always network-first for HTML/JS to ensure latest code
+  const sameOrigin = url.origin === self.location.origin;
+
+  // Cross-origin requests (Supabase API, fonts CDN, etc.) — passthrough, NO caching
+  if (!sameOrigin) {
+    return;
+  }
+
+  // Same-origin: network-first for HTML/JS
   if (e.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('.js') || url.pathname === '/' || url.pathname.endsWith('/DOER/') || url.pathname.endsWith('/DOER')) {
     e.respondWith(
-      fetch(e.request, { cache: 'no-store' })
-        .then((res) => {
-          // Update cache in background
-          const resClone = res.clone();
-          caches.open(VERSION).then((c) => c.put(e.request, resClone)).catch(() => {});
-          return res;
-        })
-        .catch(() => caches.match(e.request))
-    );
-  } else {
-    // Other assets: cache-first with network fallback
-    e.respondWith(
-      caches.match(e.request).then((cached) => cached || fetch(e.request).then((res) => {
-        const resClone = res.clone();
-        caches.open(VERSION).then((c) => c.put(e.request, resClone)).catch(() => {});
-        return res;
-      }))
+      fetch(e.request, { cache: 'no-store' }).catch(() => caches.match(e.request))
     );
   }
+  // Else: don't intercept
 });
 
-// Listen for skip-waiting message from clients
 self.addEventListener('message', (e) => {
   if (e.data && e.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
