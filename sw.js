@@ -1,5 +1,5 @@
 // DOER Service Worker — network-first for HTML/JS, passthrough for cross-origin (Supabase, etc.)
-const VERSION = 'doer-v0605-54';
+const VERSION = 'doer-v0605-55';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
