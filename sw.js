@@ -1,14 +1,19 @@
-// DOER Service Worker — network-first for HTML/JS, passthrough for cross-origin (Supabase, etc.)
-const VERSION = 'doer-v0605-94';
+// DOER Service Worker — network-first for HTML/JS with offline cache fallback,
+// cache-first for static assets, passthrough for cross-origin (Supabase, etc.)
+const VERSION = 'doer-v0605-95';
+const PRECACHE = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'icon-512-maskable.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(VERSION).then((c) => c.addAll(PRECACHE)).catch(() => {})
+  );
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
@@ -16,19 +21,35 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   const sameOrigin = url.origin === self.location.origin;
+  if (!sameOrigin || e.request.method !== 'GET') return; // Supabase etc: passthrough, no caching
 
-  // Cross-origin requests (Supabase API, fonts CDN, etc.) — passthrough, NO caching
-  if (!sameOrigin) {
-    return;
-  }
+  const isDoc = e.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('.js') || url.pathname === '/' || url.pathname.endsWith('/DOER/') || url.pathname.endsWith('/DOER');
 
-  // Same-origin: network-first for HTML/JS
-  if (e.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('.js') || url.pathname === '/' || url.pathname.endsWith('/DOER/') || url.pathname.endsWith('/DOER')) {
+  if (isDoc) {
+    // network-first, refresh cache on success, cache fallback when offline
     e.respondWith(
-      fetch(e.request, { cache: 'no-store' }).catch(() => caches.match(e.request))
+      fetch(e.request, { cache: 'no-store' }).then((res) => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(VERSION).then((c) => c.put(e.request, copy)).catch(() => {});
+        }
+        return res;
+      }).catch(() =>
+        caches.match(e.request).then((hit) => hit || caches.match('index.html'))
+      )
+    );
+  } else {
+    // static assets (icons, manifest): cache-first, then network + cache
+    e.respondWith(
+      caches.match(e.request).then((hit) => hit || fetch(e.request).then((res) => {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(VERSION).then((c) => c.put(e.request, copy)).catch(() => {});
+        }
+        return res;
+      }))
     );
   }
-  // Else: don't intercept
 });
 
 self.addEventListener('message', (e) => {

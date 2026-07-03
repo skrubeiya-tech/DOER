@@ -1,0 +1,18 @@
+{
+  "id": "doer-habit-calendar",
+  "name": "DOER — a habit-aware calendar",
+  "short_name": "DOER",
+  "description": "A habit-aware calendar. Track workouts, meals, macros, prayers, deep work, self-care and challenges — one day at a time.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F3F2EE",
+  "theme_color": "#F3F2EE",
+  "categories": ["health", "lifestyle", "productivity"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
