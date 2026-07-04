@@ -1,6 +1,6 @@
 // DOER Service Worker — network-first for HTML/JS with offline cache fallback,
 // cache-first for static assets, passthrough for cross-origin (Supabase, etc.)
-const VERSION = 'doer-v0605-96';
+const VERSION = 'doer-v0605-97';
 const PRECACHE = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'icon-512-maskable.png', 'apple-touch-icon.png', 'penguin.png', 'penguin-bed.png'];
 
 self.addEventListener('install', (e) => {
