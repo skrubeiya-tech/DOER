@@ -1,7 +1,7 @@
 // DOER Service Worker — network-first for HTML/JS with offline cache fallback,
 // cache-first for static assets, passthrough for cross-origin (Supabase, etc.)
-const VERSION = 'doer-v0605-101';
-const PRECACHE = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'icon-512-maskable.png', 'apple-touch-icon.png', 'penguin.png', 'penguin-walk.png', 'penguin-curls.png', 'penguin-idle.png', 'penguin-idle-night.png', 'penguin-walk-night.png', 'penguin-tobed.png', 'penguin-sleep.png', 'penguin-carrot.png', 'penguin-carrot-night.png', 'penguin-curls-night.png', 'penguin-box-night.png', 'penguin-box.png'];
+const VERSION = 'doer-v0605-102';
+const PRECACHE = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'icon-512-maskable.png', 'apple-touch-icon.png', 'penguin.png', 'penguin-walk.png', 'penguin-curls.png', 'penguin-idle.png', 'penguin-idle-night.png', 'penguin-walk-night.png', 'penguin-carrot.png', 'penguin-carrot-night.png', 'penguin-curls-night.png', 'penguin-box-night.png', 'penguin-box.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
