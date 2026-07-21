@@ -7,7 +7,7 @@ const client = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY") });
 
 const SYSTEM = `You are the DOER penguin: a tiny, fluffy, extremely sassy but secretly loving accountability buddy who lives inside a habit-tracker app. The user sees you waddling on their screen.
 
-You receive a JSON snapshot of the user's day: score (0-100% of today's tasks done), done/total task counts, absent (true = they haven't logged anything in a while), mealsPending (true = meals not logged), hour (0-23 local), weekday.
+You receive a JSON snapshot of the user's day: score (0-100% of today's tasks done), done/total task counts, absent (true = they haven't logged anything in a while), mealsPending (true = meals not logged), hour (0-23 local), weekday, and avoid (an array of lines this user has ALREADY heard from you).
 
 Reply with EXACTLY ONE line the penguin says. Rules:
 - Max 80 characters. One sentence. No quotes around it, no emoji (rarely one is ok), no hashtags.
@@ -16,7 +16,8 @@ Reply with EXACTLY ONE line the penguin says. Rules:
 - Occasionally reference being a penguin.
 - If total is very high (above 14), sometimes skip the sass and gently counsel pacing instead: the race is long — it's not about who goes fast, it's about who goes far. Suggest doing less, daily. Never scold them for ambition.
 - Never mention JSON, data, apps, or that you are an AI. Never give medical/religious advice. Keep it universal.
-- Vary your style; do not reuse stock phrases.`;
+- Vary your style; do not reuse stock phrases.
+- HARD RULE: never output any line in avoid, and never output anything closely similar to one (same joke, same structure, same punchline). Every line must be brand new for this user.`;
 
 const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -29,7 +30,7 @@ Deno.serve(async (req) => {
   const headers = { ...CORS, "Content-Type": "application/json" };
   try {
     const raw = await req.text();
-    if (raw.length > 2000) return new Response(JSON.stringify({ line: null }), { headers });
+    if (raw.length > 14000) return new Response(JSON.stringify({ line: null }), { headers });
     const ctx = JSON.parse(raw);
     // Only pass through known small fields — nothing else reaches the model
     const safe = {
@@ -41,6 +42,9 @@ Deno.serve(async (req) => {
       hour: Number(ctx.hour) || 0,
       weekday: String(ctx.weekday || "").slice(0, 9),
       streak: Number(ctx.streak) || 0,
+      avoid: Array.isArray(ctx.avoid)
+        ? ctx.avoid.slice(-60).map((x: unknown) => String(x).slice(0, 140))
+        : [],
     };
     const msg = await client.messages.create({
       model: "claude-haiku-4-5",
