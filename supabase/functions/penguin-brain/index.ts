@@ -48,8 +48,8 @@ Deno.serve(async (req) => {
       messages: [{ role: "user", content: JSON.stringify(safe) }],
     });
     const block = msg.content.find((b: { type: string }) => b.type === "text") as { text?: string } | undefined;
-    let line = (block?.text || "").trim().replace(/^["'“]|["'”]$/g, "").slice(0, 120);
-    if (!line) line = null as unknown as string;
+    const cleaned = (block?.text || "").trim().replace(/^["'“]|["'”]$/g, "").slice(0, 120);
+    const line: string | null = cleaned.length > 0 ? cleaned : null;
     return new Response(JSON.stringify({ line }), { headers });
   } catch (_e) {
     // Any failure -> null; the app falls back to canned lines

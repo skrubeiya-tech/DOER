@@ -28,7 +28,8 @@ Everything else is built. These two steps are the only ones that must be you
 4. Delete the sample code in the editor and paste in the ENTIRE contents of the file
    `supabase/functions/penguin-brain/index.ts` from this folder
    (I'll paste it in chat for you when you're ready — it contains NO secrets, it's safe to copy through chat).
-5. Click **Deploy**.
+5. If you see a toggle/checkbox named **"Verify JWT"** or **"Enforce JWT verification"** — turn it **OFF** for this function. (The penguin brain has its own guardrails; this toggle would block the app.)
+6. Click **Deploy**.
 6. Now the key: left sidebar → **Edge Functions** → **Secrets**
    (or Project Settings → Edge Functions → Secrets) → **Add secret**:
    - Name: `ANTHROPIC_API_KEY`
