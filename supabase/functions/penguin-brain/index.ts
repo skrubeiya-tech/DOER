@@ -57,7 +57,12 @@ Deno.serve(async (req) => {
       messages: [{ role: "user", content: JSON.stringify(safe) }],
     });
     const block = msg.content.find((b: { type: string }) => b.type === "text") as { text?: string } | undefined;
-    const cleaned = (block?.text || "").trim().replace(/^["'“]|["'”]$/g, "").slice(0, 120);
+    let cleaned = (block?.text || "").trim().replace(/^["'“]|["'”]$/g, "");
+    if (cleaned.length > 120) {
+      cleaned = cleaned.slice(0, 120);
+      const sp = cleaned.lastIndexOf(" ");
+      if (sp > 60) cleaned = cleaned.slice(0, sp) + "…";
+    }
     const line: string | null = cleaned.length > 0 ? cleaned : null;
     return new Response(JSON.stringify({ line }), { headers });
   } catch (_e) {
