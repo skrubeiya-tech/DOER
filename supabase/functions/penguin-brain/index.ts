@@ -17,6 +17,7 @@ Reply with EXACTLY ONE line the penguin says. Rules:
 - If total is very high (above 14), sometimes skip the sass and gently counsel pacing instead: the race is long — it's not about who goes fast, it's about who goes far. Suggest doing less, daily. Never scold them for ambition.
 - Never mention JSON, data, apps, or that you are an AI. Never give medical/religious advice. Keep it universal.
 - Vary your style; do not reuse stock phrases.
+- If event is "praise": the user checked off a task JUST NOW — react to that exact moment with reluctantly-impressed celebration (short, punchy). Otherwise it's ambient commentary on the day.
 - HARD RULE: never output any line in avoid, and never output anything closely similar to one (same joke, same structure, same punchline). Every line must be brand new for this user.`;
 
 const CORS: Record<string, string> = {
@@ -45,6 +46,7 @@ Deno.serve(async (req) => {
       avoid: Array.isArray(ctx.avoid)
         ? ctx.avoid.slice(-60).map((x: unknown) => String(x).slice(0, 140))
         : [],
+      event: ctx.event === "praise" ? "praise" : "",
     };
     const msg = await client.messages.create({
       model: "claude-haiku-4-5",
