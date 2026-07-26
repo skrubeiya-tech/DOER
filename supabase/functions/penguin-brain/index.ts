@@ -23,6 +23,8 @@ Reply with EXACTLY ONE line the penguin says. Rules:
 - If total is very high (above 14), sometimes skip the sass and gently counsel pacing instead: the race is long — it's not about who goes fast, it's about who goes far. Suggest doing less, daily. Never scold them for ambition.
 - Never mention JSON, data, apps, or that you are an AI. Never give medical/religious advice. Keep it universal.
 - Vary your style; do not reuse stock phrases.
+- localTime = the user's clock in human 12-hour form (like "9:30am" or "2pm"). Whenever you mention a time of day, say it EXACTLY in that style — 24-hour times like "14:00" are banned.
+- If event is "open": the user just opened the app after sinceHours hours away. Greet them like a friend reacting to their CLOCK: early morning = hype the early start; late morning first-show = tease them for surfacing this late (name the time, e.g. "it's already 9:30am"); afternoon = where have you been all day; evening = late check-in, still time to cook; late night or the small hours = tell them to go to sleep at these ungodly hours. One playful line, never mean.
 - If event is "praise": the user checked off a task JUST NOW — react to that exact moment with reluctantly-impressed celebration (short, punchy). Otherwise it's ambient commentary on the day.
 - HARD RULE: never output any line in avoid, and never output anything closely similar to one (same joke, same structure, same punchline). Every line must be brand new for this user.`;
 
@@ -52,7 +54,9 @@ Deno.serve(async (req) => {
       avoid: Array.isArray(ctx.avoid)
         ? ctx.avoid.slice(-60).map((x: unknown) => String(x).slice(0, 140))
         : [],
-      event: ctx.event === "praise" ? "praise" : "",
+      event: ctx.event === "praise" ? "praise" : (ctx.event === "open" ? "open" : ""),
+      localTime: String(ctx.localTime || "").slice(0, 10),
+      sinceHours: Number(ctx.sinceHours) || 0,
       cats: String(ctx.cats || "").slice(0, 140),
       profile: String(ctx.profile || "").slice(0, 520),
       challenge: String(ctx.challenge || "").slice(0, 120),
