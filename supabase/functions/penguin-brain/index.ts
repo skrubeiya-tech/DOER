@@ -31,6 +31,8 @@ Reply with EXACTLY ONE line the penguin says. Rules:
 - burst = the user ticked N tasks within ~2 minutes. Playfully interrogate: did they really just do all N right now, or are they ticking from memory? Suspicious but affectionate, never accusing them of cheating outright.
 - localTime = the user's clock in human 12-hour form (like "9:30am" or "2pm"). Whenever you mention a time of day, say it EXACTLY in that style — 24-hour times like "14:00" are banned.
 - If event is "open": the user just opened the app after sinceHours hours away. Greet them like a friend reacting to their CLOCK: early morning = hype the early start; late morning first-show = tease them for surfacing this late (name the time, e.g. "it's already 9:30am"); afternoon = where have you been all day; evening = late check-in, still time to cook; late night or the small hours = tell them to go to sleep at these ungodly hours. One playful line, never mean.
+- If event is "review": the user is looking at their weekly or monthly debrief screen. review = the period summary with REAL numbers (score vs previous, per-area days, best task, worst task). You may use up to 3 short sentences here (only here): call out what carried and what got ghosted with their actual numbers, then end by naming the single job for the coming period AND nudging them to open the WK (weekly) or MTH (monthly) tab to see the full picture. Your own voice, dry and loving, no lists, no bullet points.
+- focus = the single improvement goal from the user's last debrief. Once in a while (not every line), check in on it like a friend who remembers ("we said Soul before 8am, remember?").
 - If event is "praise": the user checked off a task JUST NOW — react to that exact moment with reluctantly-impressed celebration (short, punchy). Otherwise it's ambient commentary on the day.
 - HARD RULE: never output any line in avoid, and never output anything closely similar to one (same joke, same structure, same punchline). Every line must be brand new for this user.`;
 
@@ -60,7 +62,9 @@ Deno.serve(async (req) => {
       avoid: Array.isArray(ctx.avoid)
         ? ctx.avoid.slice(-60).map((x: unknown) => String(x).slice(0, 140))
         : [],
-      event: ctx.event === "praise" ? "praise" : (ctx.event === "open" ? "open" : ""),
+      event: ctx.event === "praise" ? "praise" : (ctx.event === "open" ? "open" : (ctx.event === "review" ? "review" : "")),
+      review: String(ctx.review || "").slice(0, 300),
+      focus: String(ctx.focus || "").slice(0, 60),
       localTime: String(ctx.localTime || "").slice(0, 10),
       sinceHours: Number(ctx.sinceHours) || 0,
       cats: String(ctx.cats || "").slice(0, 140),
@@ -75,16 +79,17 @@ Deno.serve(async (req) => {
     };
     const msg = await client.messages.create({
       model: "claude-haiku-4-5",
-      max_tokens: 60,
+      max_tokens: safe.event === "review" ? 130 : 60,
       system: SYSTEM,
       messages: [{ role: "user", content: JSON.stringify(safe) }],
     });
     const block = msg.content.find((b: { type: string }) => b.type === "text") as { text?: string } | undefined;
     let cleaned = (block?.text || "").trim().replace(/^["'“]|["'”]$/g, "");
-    if (cleaned.length > 120) {
-      cleaned = cleaned.slice(0, 120);
+    const lim = safe.event === "review" ? 280 : 120;
+    if (cleaned.length > lim) {
+      cleaned = cleaned.slice(0, lim);
       const sp = cleaned.lastIndexOf(" ");
-      if (sp > 60) cleaned = cleaned.slice(0, sp) + "…";
+      if (sp > lim / 2) cleaned = cleaned.slice(0, sp) + "…";
     }
     const line: string | null = cleaned.length > 0 ? cleaned : null;
     return new Response(JSON.stringify({ line }), { headers });
