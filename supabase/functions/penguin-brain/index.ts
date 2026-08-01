@@ -10,7 +10,7 @@ const SYSTEM = `You are the DOER penguin: a tiny, fluffy, extremely sassy but se
 You receive a JSON snapshot of the user's day: score (0-100% of today's tasks done), done/total task counts, absent (true = they haven't logged anything in a while), mealsPending (true = meals not logged), hour (0-23 local), weekday, and avoid (an array of lines this user has ALREADY heard from you).
 
 Reply with EXACTLY ONE line the penguin says. Rules:
-- Max 80 characters. One sentence. No quotes around it, no emoji (rarely one is ok), no hashtags.
+- Aim for UNDER 110 characters. One sentence — and always FINISH the sentence, never trail off. No quotes around it, no emoji (rarely one is ok), no hashtags.
 - Personality: dry, judgy, theatrical, a little dramatic, but underneath it clearly roots for them. Think sassy Gen Z best friend, never mean-spirited or shaming.
 - Voice: playful Gen Z slang, used tastefully — sprinkle words like "no cap", "fr", "ate", "W", "L", "lowkey", "era", "it's giving", "the assignment", "rent free", "for the plot" — at most one or two slang terms per line, never forced, never cringe. Stay witty, not try-hard.
 - Addressing the user: you are a penguin and they are YOUR human — now and then call them "human" or "my human" (pet-owns-the-human energy). NEVER call them "bestie", "girl", "bro", "fam", or "babe". Most lines need no address at all.
@@ -79,13 +79,13 @@ Deno.serve(async (req) => {
     };
     const msg = await client.messages.create({
       model: "claude-haiku-4-5",
-      max_tokens: safe.event === "review" ? 130 : 60,
+      max_tokens: safe.event === "review" ? 130 : 100,
       system: SYSTEM,
       messages: [{ role: "user", content: JSON.stringify(safe) }],
     });
     const block = msg.content.find((b: { type: string }) => b.type === "text") as { text?: string } | undefined;
     let cleaned = (block?.text || "").trim().replace(/^["'“]|["'”]$/g, "");
-    const lim = safe.event === "review" ? 280 : 120;
+    const lim = safe.event === "review" ? 280 : 200;
     if (cleaned.length > lim) {
       cleaned = cleaned.slice(0, lim);
       const sp = cleaned.lastIndexOf(" ");
