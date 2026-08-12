@@ -1,13 +1,23 @@
 // DOER Service Worker — network-first for HTML/JS with offline cache fallback,
 // cache-first for static assets, passthrough for cross-origin (Supabase, etc.)
-const VERSION = 'doer-v0605-275';
+const VERSION = 'doer-v0605-276';
 const ASSETCACHE = 'doer-cdn-assets-v1'; // fonts + CDN libs: cache-first, survives version bumps
 const PRECACHE = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'icon-512-maskable.png', 'apple-touch-icon.png', 'penguin.png', 'penguin-walk.png', 'penguin-curls.png', 'penguin-idle.png', 'penguin-idle-night.png', 'penguin-walk-night.png', 'penguin-carrot.png', 'penguin-carrot-night.png', 'penguin-curls-night.png', 'penguin-box-night.png', 'penguin-box.png'];
 
+const CDN_PRECACHE = [
+  'https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js',
+  'https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js',
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
+  'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Cinzel:wght@400;600&display=swap'
+];
+
 self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(VERSION).then((c) => c.addAll(PRECACHE)).catch(() => {})
-  );
+  e.waitUntil(Promise.all([
+    caches.open(VERSION).then((c) => c.addAll(PRECACHE)).catch(() => {}),
+    caches.open(ASSETCACHE).then((c) => Promise.all(CDN_PRECACHE.map((u) =>
+      c.match(u).then((hit) => hit || fetch(u).then((r) => { if (r && r.ok) return c.put(u, r); }).catch(() => {}))
+    ))).catch(() => {})
+  ]));
   self.skipWaiting();
 });
 
@@ -25,7 +35,7 @@ self.addEventListener('fetch', (e) => {
 
   // fonts + CDN libraries: cache-first in a persistent cache, so one good load
   // means they never fail again (a flaky fetch used to swap the whole app's serif)
-  const isCdnAsset = url.host === 'fonts.googleapis.com' || url.host === 'fonts.gstatic.com' || url.host === 'cdn.jsdelivr.net';
+  const isCdnAsset = url.host === 'fonts.googleapis.com' || url.host === 'fonts.gstatic.com' || url.host === 'cdn.jsdelivr.net' || url.host === 'unpkg.com';
   if (e.request.method === 'GET' && isCdnAsset) {
     e.respondWith(
       caches.match(e.request).then((hit) => hit || fetch(e.request).then((res) => {
@@ -34,7 +44,7 @@ self.addEventListener('fetch', (e) => {
           caches.open(ASSETCACHE).then((c) => c.put(e.request, copy)).catch(() => {});
         }
         return res;
-      }))
+      })).catch(() => fetch(e.request))
     );
     return;
   }
