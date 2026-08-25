@@ -151,3 +151,12 @@ for i in $(seq 1 20); do V=$(curl -s "https://skrubeiya-tech.github.io/DOER/inde
 - [ ] LATER (her call, Aug 25): pet penguin visual polish — attempt ONE at a time with her approval on each, mockup/preview-first, never bundled: (1) white fringe + white patch between legs on night PNGs (Higgsfield cutout attempt exists: scratchpad hf-idle-night; fringe backups in repo), (2) baked floor shadows under feet, (3) opaque box behind carrot-night (opaque backup in repo), (4) dark-mode drop-shadow quality, (5) speech-bubble/penguin gap + tail. All were tried v386-390 and fully reverted at v391 per her order; pet is sacred ground until she reopens this.
 - [x] DONE v394 (Aug 25): self-host Cormorant Garamond + Cinzel woff2 inside the repo (drop the Google Fonts link) so no device ever renders fallback fonts (her Pixel showed plain-serif numbers on first load, Aug 25); add files to SW PRECACHE. Also: one full design review ON ANDROID before launch - rendering is thinner/sharper there; check the places we tuned by thickness (wordmark icon, headers, heading weights).
 - [ ] NOVEMBER (her ask Aug 25, agreed post-launch): big-screen layout rule - phones keep the locked iPhone-width layout untouched; screens wider than ~700px get a wide rule like WhatsApp does: wider column clamp, category cards 2-up side by side, roomier month cells. Mockup-first on her Fold before building. Pairs with App Store tablet screenshots.
+
+## ⚡ SCHEDULE PREPONED (her call, Aug 25 evening): App Store APPROVAL by OCT 7. Everything done by end of Sept.
+- SUBMIT to App Store ~Sept 20-22 (buffer for one rejection cycle; review 1-7 days)
+- HER JOB NOW: Apple Developer Program enrollment ($99, developer.apple.com) - longest pole, days to clear, blocks everything native
+- Aug 25-31: AI helper people + report/block on clips (Apple-MANDATORY for UGC) 
+- Sept 1-7: Capacitor iOS shell + NATIVE push migration (web push does not exist in WKWebView - pengpush needs an APNs path) + beingdoer.com live w/ privacy+terms + in-app account deletion (Apple-mandatory)
+- Sept 8-14: store listing assets/screenshots + TestFlight beta (friends) + consent softening for store build + Fold layout if runway
+- Sept 15-21: TestFlight fixes, SUBMIT ~Sept 20
+- OPEN QUESTION: Play Store too? (new-account 14-day/12-tester closed-test rule makes Oct 7 Play unrealistic)
