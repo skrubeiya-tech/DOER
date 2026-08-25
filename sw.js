@@ -1,14 +1,13 @@
 // DOER Service Worker — network-first for HTML/JS with offline cache fallback,
 // cache-first for static assets, passthrough for cross-origin (Supabase, etc.)
-const VERSION = 'doer-v0605-393';
+const VERSION = 'doer-v0605-394';
 const ASSETCACHE = 'doer-cdn-assets-v1'; // fonts + CDN libs: cache-first, survives version bumps
-const PRECACHE = ['./', 'index.html', 'manifest.json', 'icon-192.png', 'icon-512.png', 'icon-512-maskable.png', 'apple-touch-icon.png', 'penguin.png', 'penguin-walk.png', 'penguin-curls.png', 'penguin-idle.png', 'penguin-idle-night.png', 'penguin-walk-night.png', 'penguin-carrot.png', 'penguin-carrot-night.png', 'penguin-curls-night.png', 'penguin-box-night.png', 'penguin-box.png'];
+const PRECACHE = ['./', 'index.html', 'manifest.json', 'fonts/Cinzel-400-latin-ext.woff2', 'fonts/Cinzel-400-latin.woff2', 'fonts/Cinzel-600-latin-ext.woff2', 'fonts/Cinzel-600-latin.woff2', 'fonts/CormorantGaramond-300-latin-ext.woff2', 'fonts/CormorantGaramond-300-latin.woff2', 'fonts/CormorantGaramond-300i-latin-ext.woff2', 'fonts/CormorantGaramond-300i-latin.woff2', 'fonts/CormorantGaramond-400-latin-ext.woff2', 'fonts/CormorantGaramond-400-latin.woff2', 'fonts/CormorantGaramond-400i-latin-ext.woff2', 'fonts/CormorantGaramond-400i-latin.woff2', 'fonts/CormorantGaramond-600-latin-ext.woff2', 'fonts/CormorantGaramond-600-latin.woff2', 'fonts/fonts.css', 'icon-192.png', 'icon-512.png', 'icon-512-maskable.png', 'apple-touch-icon.png', 'penguin.png', 'penguin-walk.png', 'penguin-curls.png', 'penguin-idle.png', 'penguin-idle-night.png', 'penguin-walk-night.png', 'penguin-carrot.png', 'penguin-carrot-night.png', 'penguin-curls-night.png', 'penguin-box-night.png', 'penguin-box.png'];
 
 const CDN_PRECACHE = [
   'https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js',
   'https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js',
-  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
-  'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Cinzel:wght@400;600&display=swap'
+  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
 ];
 
 self.addEventListener('install', (e) => {
