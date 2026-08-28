@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DOER · active card, apple-quiet</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0 auto;background:#111;color:#EDEAE2;font-family:'Cormorant Garamond',Georgia,serif;max-width:430px;padding:22px 12px 60px}
+.tag{font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;color:#C2F03F;margin:28px 0 10px;text-align:center}
+.tag:first-child{margin-top:0}
+.phone{background:#0c0c0c;border:1px solid rgba(255,255,255,0.12);border-radius:22px;padding:16px 14px}
+.card{background:#141412;border:1px solid rgba(180,180,140,0.27);border-radius:16px;padding:18px 16px 14px;min-height:210px;display:flex;flex-direction:column;position:relative}
+.row{display:flex;gap:14px;flex:1}
+.left{flex:1;min-width:0;display:flex;flex-direction:column}
+.nmrow{display:flex;align-items:center;gap:9px}
+.ic{font-size:24px}
+.nm{font-family:'Cinzel',serif;font-size:12.5px;letter-spacing:2.5px}
+.dur{font-family:'Cinzel',serif;font-size:10px;letter-spacing:2.5px;color:#A8B37A;margin-top:8px}
+.clockbig{font-size:23px;font-weight:600;letter-spacing:1px;margin-top:7px;font-variant-numeric:tabular-nums}
+.clockbig i{font-style:italic;font-size:10.5px;color:#948E84;font-weight:400;letter-spacing:0;margin-left:6px}
+.cnt{font-family:'Cinzel',serif;font-size:8.5px;letter-spacing:2px;color:#948E84;margin-top:3px}
+.dayA{font-size:32px;font-weight:400;line-height:1.05;margin-top:auto}
+.wait{font-style:italic;font-size:11.5px;color:#948E84;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar{height:2px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;margin-top:10px}
+.bar i{display:block;height:100%;width:29%;background:#A8B37A}
+.tiles{flex-shrink:0;width:150px;display:flex;flex-direction:column;justify-content:center;opacity:0.92}
+.tg{display:grid;grid-template-columns:repeat(7,1fr);gap:2.5px}
+.t{position:relative;height:21px;border-radius:4.5px;border:1px solid rgba(255,255,255,0.10);font-family:Georgia,serif;font-size:8px;font-weight:bold;color:rgba(255,255,255,0.75);text-align:center;line-height:21px}
+.t.d{background:rgba(168,179,122,0.40);border-color:rgba(168,179,122,0.5)}
+.t.today{border:1.5px solid rgba(255,255,255,0.9)}
+.t.f{background:rgba(255,255,255,0.03);opacity:0.45}
+/* apple-quiet variant */
+.q .dayB{font-size:38px;font-weight:400;line-height:1;margin-top:auto}
+.q .clocksm{font-size:14px;color:#948E84;margin-top:4px;font-variant-numeric:tabular-nums}
+.q .clocksm i{font-style:italic;font-size:11px}
+.q .wait2{font-style:italic;font-size:12px;color:#c9c4b8;margin-top:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.note{font-style:italic;font-size:12.5px;color:#948E84;margin-top:10px;text-align:center;line-height:1.55}
+</style>
+</head>
+<body>
+
+<div class="tag">A · CURRENT (v418)</div>
+<div class="phone">
+  <div class="card">
+    <div class="row">
+      <div class="left">
+        <div class="nmrow"><span class="ic">🎯</span><span class="nm">MORNING RESET</span></div>
+        <div class="dur">A 14 DAY CHALLENGE</div>
+        <div class="clockbig">06:42:52<i>left today</i></div>
+        <div class="cnt">0 OF 3 DONE TODAY</div>
+        <div class="dayA">Day 4</div>
+        <div class="wait">waiting: Run · Read · Water</div>
+      </div>
+      <div class="tiles"><div class="tg">
+        <div class="t d">1</div><div class="t d">2</div><div class="t d">3</div><div class="t today">4</div><div class="t f">5</div><div class="t f">6</div><div class="t f">7</div>
+        <div class="t f">8</div><div class="t f">9</div><div class="t f">10</div><div class="t f">11</div><div class="t f">12</div><div class="t f">13</div><div class="t f">14</div>
+      </div></div>
+    </div>
+    <div class="bar"><i></i></div>
+  </div>
+</div>
+
+<div class="tag">B · APPLE-QUIET — one hero, no duplicates</div>
+<div class="phone">
+  <div class="card q">
+    <div class="row">
+      <div class="left">
+        <div class="nmrow"><span class="ic">🎯</span><span class="nm">MORNING RESET</span></div>
+        <div class="dur">A 14 DAY CHALLENGE</div>
+        <div class="dayB">Day 4</div>
+        <div class="clocksm">06:42 <i>left today</i></div>
+        <div class="wait2">waiting: Run · Read · Water</div>
+      </div>
+      <div class="tiles"><div class="tg">
+        <div class="t d">1</div><div class="t d">2</div><div class="t d">3</div><div class="t today">4</div><div class="t f">5</div><div class="t f">6</div><div class="t f">7</div>
+        <div class="t f">8</div><div class="t f">9</div><div class="t f">10</div><div class="t f">11</div><div class="t f">12</div><div class="t f">13</div><div class="t f">14</div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<div class="note">B keeps one hero — Day 4 grows to 38 — the clock calms to a small grey line beneath it,<br/>the count line and the bottom bar leave (the wall already tells that story),<br/>and the waiting names step slightly brighter since they are now the only call to action.</div>
+
+</body>
+</html>
