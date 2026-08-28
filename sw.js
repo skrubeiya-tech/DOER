@@ -1,6 +1,6 @@
 // DOER Service Worker — network-first for HTML/JS with offline cache fallback,
 // cache-first for static assets, passthrough for cross-origin (Supabase, etc.)
-const VERSION = 'doer-v0605-405';
+const VERSION = 'doer-v0605-406';
 const ASSETCACHE = 'doer-cdn-assets-v1'; // fonts + CDN libs: cache-first, survives version bumps
 const PRECACHE = ['./', 'index.html', 'manifest.json', 'fonts/Cinzel-400-latin-ext.woff2', 'fonts/Cinzel-400-latin.woff2', 'fonts/Cinzel-600-latin-ext.woff2', 'fonts/Cinzel-600-latin.woff2', 'fonts/CormorantGaramond-300-latin-ext.woff2', 'fonts/CormorantGaramond-300-latin.woff2', 'fonts/CormorantGaramond-300i-latin-ext.woff2', 'fonts/CormorantGaramond-300i-latin.woff2', 'fonts/CormorantGaramond-400-latin-ext.woff2', 'fonts/CormorantGaramond-400-latin.woff2', 'fonts/CormorantGaramond-400i-latin-ext.woff2', 'fonts/CormorantGaramond-400i-latin.woff2', 'fonts/CormorantGaramond-600-latin-ext.woff2', 'fonts/CormorantGaramond-600-latin.woff2', 'fonts/fonts.css', 'icon-192.png', 'icon-512.png', 'icon-512-maskable.png', 'apple-touch-icon.png', 'penguin.png', 'penguin-walk.png', 'penguin-curls.png', 'penguin-idle.png', 'penguin-idle-night.png', 'penguin-walk-night.png', 'penguin-carrot.png', 'penguin-carrot-night.png', 'penguin-curls-night.png', 'penguin-box-night.png', 'penguin-box.png'];
 
@@ -67,17 +67,23 @@ self.addEventListener('fetch', (e) => {
   const isDoc = e.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('.js') || url.pathname === '/' || url.pathname.endsWith('/DOER/') || url.pathname.endsWith('/DOER');
 
   if (isDoc) {
-    // network-first, refresh cache on success, cache fallback when offline
+    // stale-while-revalidate: serve the cached app INSTANTLY, refresh the cache
+    // in the background so the next open gets the new version (same two-open
+    // update rhythm as before, but launches never wait on the network)
     e.respondWith(
-      fetch(e.request, { cache: 'no-store' }).then((res) => {
-        if (res && res.ok) {
-          const copy = res.clone();
-          caches.open(VERSION).then((c) => c.put(e.request, copy)).catch(() => {});
-        }
-        return res;
-      }).catch(() =>
-        caches.match(e.request).then((hit) => hit || caches.match('index.html'))
-      )
+      caches.match(e.request).then((hit) => {
+        const refresh = fetch(e.request, { cache: 'no-store' }).then((res) => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(VERSION).then((c) => c.put(e.request, copy)).catch(() => {});
+          }
+          return res;
+        });
+        if (hit) { refresh.catch(() => {}); return hit; }
+        return refresh.catch(() =>
+          caches.match('index.html')
+        );
+      })
     );
   } else {
     // static assets (icons, manifest): cache-first, then network + cache
