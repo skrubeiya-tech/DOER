@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DOER · the solo page, apple-shaped</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0 auto;background:#111;color:#EDEAE2;font-family:'Cormorant Garamond',Georgia,serif;max-width:430px;padding:22px 12px 60px}
+.tag{font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;color:#C2F03F;margin:30px 0 10px;text-align:center}
+.tag:first-child{margin-top:0}
+.phone{background:#0c0c0c;border:1px solid rgba(255,255,255,0.12);border-radius:22px;padding:14px 12px}
+.sech{font-family:'Cinzel',serif;font-size:9px;letter-spacing:3px;color:#948E84;margin:16px 2px 8px}
+.card{background:#141412;border:1px solid rgba(180,180,140,0.27);border-radius:16px;padding:14px 13px;position:relative}
+.acard{min-height:150px;display:flex;gap:10px;margin-bottom:8px}
+.acl{flex:1;min-width:0;display:flex;flex-direction:column}
+.nm{font-family:'Cinzel',serif;font-size:11px;letter-spacing:2px}
+.dur{font-family:'Cinzel',serif;font-size:8px;letter-spacing:2px;color:#A8B37A;margin-top:5px}
+.day{font-size:28px;margin-top:auto;line-height:1}
+.clk{font-size:11px;color:#948E84;margin-top:3px}
+.wt{font-style:italic;font-size:10px;color:#c9c4b8;margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tg{flex-shrink:0;width:98px;display:grid;grid-template-columns:repeat(7,1fr);gap:2;align-self:center}
+.t{height:13px;border-radius:3px;border:1px solid rgba(255,255,255,0.1);font-size:5.5px;font-family:Georgia,serif;font-weight:bold;color:rgba(255,255,255,0.7);text-align:center;line-height:13px}
+.t.d{background:rgba(168,179,122,0.4)}
+.t.today{border:1.2px solid rgba(255,255,255,0.9)}
+.t.f{opacity:0.4;background:rgba(255,255,255,0.03)}
+.dash{border:1.5px dashed rgba(194,240,63,0.5);border-radius:14px;padding:26px 10px;text-align:center;color:#C2F03F;font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;margin-bottom:10px}
+.dash .p{font-size:14px;margin-bottom:8px;letter-spacing:0}
+.try2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tryc{background:#141412;border:1px solid rgba(255,255,255,0.09);border-radius:14px;padding:12px;min-height:170px}
+.tryc .ic{font-size:18px}
+.tryc .n{font-family:Georgia,serif;font-weight:bold;font-size:12px;margin-top:6px}
+.tryc .d{font-family:'Cinzel',serif;font-size:7px;letter-spacing:2px;color:#c0655a;margin-top:2px}
+.tryc .desc{font-size:9px;color:#948E84;margin-top:5px;line-height:1.4}
+.radar{width:64px;height:64px;margin:10px auto 0;border:1px dashed rgba(255,255,255,0.12);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;color:#54524c}
+.minis{display:grid;grid-template-columns:repeat(4,1fr);gap:6}
+.mini{background:#141412;border:1px solid rgba(255,255,255,0.09);border-radius:12px;padding:9px 5px 8px;text-align:center}
+.mini .i{font-size:15px}
+.mini .n{font-family:Georgia,serif;font-weight:bold;font-size:7px;line-height:1.25;margin-top:4px;min-height:17px}
+.mini .pill{display:inline-block;font-size:4.5px;letter-spacing:1px;padding:2px 5px;border-radius:7px;margin-top:4px;font-family:Georgia,serif}
+.pill.g{background:rgba(110,231,183,0.15);color:#6ee7b7;border:1px solid rgba(110,231,183,0.3)}
+.pill.x{background:rgba(255,255,255,0.06);color:#948E84;border:1px solid rgba(255,255,255,0.14)}
+/* apple version pieces */
+.newrow{display:flex;align-items:center;gap:10px;padding:13px 4px;border-top:1px solid rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.08);margin:14px 0 4px;cursor:pointer}
+.newrow .plus{width:22px;height:22px;border-radius:11px;border:1px solid rgba(194,240,63,0.6);color:#C2F03F;font-size:14px;line-height:20px;text-align:center;font-family:Georgia,serif}
+.newrow .lbl{font-family:'Cinzel',serif;font-size:10px;letter-spacing:2.5px;color:#C2F03F}
+.newrow .hint{margin-left:auto;font-style:italic;font-size:10px;color:#948E84}
+.strip{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.sug{flex:0 0 46%;background:#141412;border:1px solid rgba(255,255,255,0.09);border-radius:14px;padding:12px}
+.sug .n{font-family:Georgia,serif;font-weight:bold;font-size:12px;margin-top:5px}
+.sug .d{font-family:'Cinzel',serif;font-size:7px;letter-spacing:2px;color:#A8B37A;margin-top:2px}
+.sug .line{font-style:italic;font-size:9.5px;color:#948E84;margin-top:6px;line-height:1.4}
+.hist{display:flex;align-items:center;padding:13px 4px;border-top:1px solid rgba(255,255,255,0.08);border-bottom:1px solid rgba(255,255,255,0.08);margin-top:14px;cursor:pointer}
+.hist .lbl{font-family:'Cinzel',serif;font-size:9px;letter-spacing:2.5px;color:#948E84}
+.hist .n{font-family:Georgia,serif;font-size:11px;color:#EDEAE2;margin-left:8px}
+.hist .ch{margin-left:auto;color:#948E84;font-size:13px}
+.note{font-style:italic;font-size:12.5px;color:#948E84;margin-top:12px;text-align:center;line-height:1.55}
+</style>
+</head>
+<body>
+
+<div class="tag">A · CURRENT — FIVE FULL SECTIONS</div>
+<div class="phone">
+  <div class="card acard"><div class="acl"><div class="nm">🎯&nbsp; MORNING RESET</div><div class="dur">A 14 DAY CHALLENGE</div><div class="day">Day 4</div><div class="clk">06:41 <i>left today</i></div><div class="wt">waiting: Run · Read · Water</div></div>
+  <div class="tg"><div class="t d">1</div><div class="t d">2</div><div class="t d">3</div><div class="t today">4</div><div class="t f">5</div><div class="t f">6</div><div class="t f">7</div><div class="t f">8</div><div class="t f">9</div><div class="t f">10</div><div class="t f">11</div><div class="t f">12</div><div class="t f">13</div><div class="t f">14</div></div></div>
+  <div class="dash"><div class="p">+</div>CREATE CUSTOM CHALLENGE</div>
+  <div class="dash"><div class="p">+</div>SCHEDULE A CHALLENGE</div>
+  <div class="sech">CHALLENGES TO TRY</div>
+  <div class="try2">
+    <div class="tryc"><div class="ic">🔥</div><div class="n">75 Hard</div><div class="d">75 DAYS</div><div class="desc">The ultimate mental toughness program</div><div class="radar">radar</div></div>
+    <div class="tryc"><div class="ic">💪</div><div class="n">75 Soft</div><div class="d" style="color:#A8B37A">75 DAYS</div><div class="desc">A more sustainable approach to 75 Hard</div><div class="radar">radar</div></div>
+  </div>
+  <div class="sech">COMPLETED</div>
+  <div class="minis"><div class="mini"><div class="i">🌅</div><div class="n">5AM CLUB</div><div class="pill g">DONE</div></div><div class="mini"><div class="i">🍬</div><div class="n">NO SUGAR JULY</div><div class="pill g">DONE</div></div></div>
+  <div class="sech">EXPIRED</div>
+  <div class="minis"><div class="mini"><div class="i">🧊</div><div class="n">COLD SHOWERS</div><div class="pill x">EXPIRED</div></div></div>
+</div>
+
+<div class="tag">B · APPLE-SHAPED — THREE BREATHS</div>
+<div class="phone">
+  <div class="card acard"><div class="acl"><div class="nm">🎯&nbsp; MORNING RESET</div><div class="dur">A 14 DAY CHALLENGE</div><div class="day">Day 4</div><div class="clk">06:41 <i>left today</i></div><div class="wt">waiting: Run · Read · Water</div></div>
+  <div class="tg"><div class="t d">1</div><div class="t d">2</div><div class="t d">3</div><div class="t today">4</div><div class="t f">5</div><div class="t f">6</div><div class="t f">7</div><div class="t f">8</div><div class="t f">9</div><div class="t f">10</div><div class="t f">11</div><div class="t f">12</div><div class="t f">13</div><div class="t f">14</div></div></div>
+
+  <div class="newrow"><div class="plus">+</div><div class="lbl">NEW CHALLENGE</div><div class="hint">start today or pick a date</div></div>
+
+  <div class="sech">CHALLENGES TO TRY</div>
+  <div class="strip">
+    <div class="sug"><span style="font-size:16px">🔥</span><div class="n">75 Hard</div><div class="d">75 DAYS</div><div class="line">the ultimate mental toughness program</div></div>
+    <div class="sug"><span style="font-size:16px">💪</span><div class="n">75 Soft</div><div class="d">75 DAYS</div><div class="line">a more sustainable approach to 75 Hard</div></div>
+    <div class="sug"><span style="font-size:16px">📖</span><div class="n">Reading Reset</div><div class="d">14 DAYS</div><div class="line">ten pages a day, phone down</div></div>
+  </div>
+
+  <div class="hist"><div class="lbl">COMPLETED</div><div class="n">3</div><div class="ch">›</div></div>
+</div>
+
+<div class="note">B: one quiet + row replaces both dashed boxes (the create flow's date field does the scheduling),<br/>suggestions become a sideways shelf with the promise instead of empty radars,<br/>and the whole trophy wall folds into one COMPLETED · 3 › row that opens the shelves.<br/>Your serif, your ink, your cards — only the architecture changes.</div>
+
+</body>
+</html>
