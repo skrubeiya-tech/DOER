@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DOER · group wall as a ledger</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0 auto;background:#111;color:#EDEAE2;font-family:'Cormorant Garamond',Georgia,serif;max-width:430px;padding:22px 12px 60px}
+.tag{font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;color:#C2F03F;margin:30px 0 10px;text-align:center}
+.tag:first-child{margin-top:0}
+.phone{background:#0c0c0c;border:1px solid rgba(255,255,255,0.12);border-radius:22px;padding:18px 14px}
+.eyebrow{font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;color:rgba(255,255,255,0.78);text-align:center;margin-bottom:14px}
+.row{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.dp{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-weight:bold;font-size:15px;color:#0c0c0c;position:relative;z-index:2}
+.d1{background:#A8B37A}.d2{background:#c8a96e}.d3{background:#7eb8c9}.d4{background:#a78bfa}
+.meta{position:absolute;left:50px;top:-15px;font-size:11px;color:rgba(255,255,255,0.78);font-style:italic}
+.rowwrap{position:relative;margin-top:20px}
+.cnt{font-family:'Cinzel',serif;font-size:10px;letter-spacing:1.5px;color:rgba(255,255,255,0.78);flex-shrink:0;width:30px;text-align:right}
+/* A: capsule on a faint track */
+.track{flex:1;height:12px;border-radius:6px;background:rgba(255,255,255,0.06);overflow:hidden}
+.fillA{height:100%;border-radius:6px}
+.f1{width:66%;background:#A8B37A}.f2{width:100%;background:#c8a96e}.f3{width:33%;background:#7eb8c9}.f4{width:8%;background:#a78bfa}
+/* B: free tube growing straight out of the dp */
+.tubeB{height:12px;border-radius:0 6px 6px 0;margin-left:-14px;position:relative;z-index:1}
+/* C: segmented tube, one pearl per task */
+.segs{display:flex;gap:3px;flex:1}
+.seg{height:12px;flex:1;border-radius:6px;background:rgba(255,255,255,0.06)}
+.seg.on1{background:#A8B37A}.seg.on2{background:#c8a96e}.seg.on3{background:#7eb8c9}
+.note{font-style:italic;font-size:12.5px;color:#aaa;margin-top:10px;text-align:center;line-height:1.55}
+.nm{position:absolute;left:50px;top:-16px;font-size:12px;color:rgba(255,255,255,0.85);font-family:'Cormorant Garamond',Georgia,serif}
+</style>
+</head>
+<body>
+
+<div class="tag">A · TUBE ON A TRACK — fills toward day-complete</div>
+<div class="phone">
+  <div class="eyebrow">TODAY · TOGETHER</div>
+  <div class="rowwrap"><div class="nm">Rubeiya</div><div class="row"><div class="dp d1">R</div><div class="track"><div class="fillA f1"></div></div><div class="cnt">2/3</div></div></div>
+  <div class="rowwrap"><div class="nm">Kursheeth</div><div class="row"><div class="dp d2">K</div><div class="track"><div class="fillA f2"></div></div><div class="cnt">3/3</div></div></div>
+  <div class="rowwrap"><div class="nm">Sanjana</div><div class="row"><div class="dp d3">S</div><div class="track"><div class="fillA f3"></div></div><div class="cnt">1/3</div></div></div>
+  <div class="rowwrap"><div class="nm">Abhi</div><div class="row"><div class="dp d4">A</div><div class="track"><div class="fillA f4"></div></div><div class="cnt">0/3</div></div></div>
+</div>
+
+<div class="tag">B · FREE TUBE — grows out of the dp, no track</div>
+<div class="phone">
+  <div class="eyebrow">TODAY · TOGETHER</div>
+  <div class="rowwrap"><div class="nm">Kursheeth</div><div class="row"><div class="dp d2">K</div><div class="tubeB" style="width:78%;background:#c8a96e"></div><div class="cnt">3/3</div></div></div>
+  <div class="rowwrap"><div class="nm">Rubeiya</div><div class="row"><div class="dp d1">R</div><div class="tubeB" style="width:52%;background:#A8B37A"></div><div class="cnt">2/3</div></div></div>
+  <div class="rowwrap"><div class="nm">Sanjana</div><div class="row"><div class="dp d3">S</div><div class="tubeB" style="width:26%;background:#7eb8c9"></div><div class="cnt">1/3</div></div></div>
+  <div class="rowwrap"><div class="nm">Abhi</div><div class="row"><div class="dp d4">A</div><div class="tubeB" style="width:4%;background:#a78bfa"></div><div class="cnt">0/3</div></div></div>
+  <div class="note">sorted by progress — the day becomes a quiet race</div>
+</div>
+
+<div class="tag">C · PEARL TUBE — one segment per task</div>
+<div class="phone">
+  <div class="eyebrow">TODAY · TOGETHER</div>
+  <div class="rowwrap"><div class="nm">Rubeiya</div><div class="row"><div class="dp d1">R</div><div class="segs"><div class="seg on1"></div><div class="seg on1"></div><div class="seg"></div></div><div class="cnt">2/3</div></div></div>
+  <div class="rowwrap"><div class="nm">Kursheeth</div><div class="row"><div class="dp d2">K</div><div class="segs"><div class="seg on2"></div><div class="seg on2"></div><div class="seg on2"></div></div><div class="cnt">3/3</div></div></div>
+  <div class="rowwrap"><div class="nm">Sanjana</div><div class="row"><div class="dp d3">S</div><div class="segs"><div class="seg on3"></div><div class="seg"></div><div class="seg"></div></div><div class="cnt">1/3</div></div></div>
+  <div class="rowwrap"><div class="nm">Abhi</div><div class="row"><div class="dp d4">A</div><div class="segs"><div class="seg"></div><div class="seg"></div><div class="seg"></div></div><div class="cnt">0/3</div></div></div>
+  <div class="note">each pearl is one task — you can see WHAT is left, not just how much</div>
+</div>
+
+<div class="note">All three: round dp, name whispered above, count at the end, tube fills live as tasks get logged.<br/>A is the calm Apple way (progress on a track). B is the literal growing tube — a race.<br/>C is the ledger-most: every task a visible pearl.</div>
+
+</body>
+</html>

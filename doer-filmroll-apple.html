@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DOER · the roll, as Apple would build it</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0 auto;background:#111;color:#EDEAE2;font-family:'Cormorant Garamond',Georgia,serif;max-width:430px;padding:22px 12px 60px}
+.tag{font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;color:#C2F03F;margin:30px 0 10px;text-align:center}
+.tag:first-child{margin-top:0}
+.phone{background:#0c0c0c;border:1px solid rgba(255,255,255,0.12);border-radius:22px;padding:20px 14px}
+.eyebrow{font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;color:rgba(255,255,255,0.78);text-align:center;margin-bottom:20px}
+.member{margin-bottom:24px}
+.mhead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.avwrap{position:relative;width:46px;height:46px;flex-shrink:0}
+.ringbg{position:absolute;inset:0;border-radius:50%}
+.av{position:absolute;inset:4px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-weight:bold;font-size:16px;color:#0c0c0c}
+.a1{background:#A8B37A}.a2{background:#c8a96e}.a3{background:#7eb8c9}
+.nm{font-size:15px;color:#EDEAE2}
+.cnt{margin-left:auto;font-variant-numeric:tabular-nums;font-size:15px;color:rgba(255,255,255,0.85)}
+.cnt b{font-weight:600}
+.cnt.won{color:#6ee7b7}
+.tiles{display:flex;gap:8px}
+.tile{flex:1;aspect-ratio:1;border-radius:14px;overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center}
+.tile .ph{position:absolute;inset:0}
+.p1{background:linear-gradient(135deg,#7E9C88,#3E5A4A)}
+.p2{background:linear-gradient(135deg,#c8a96e,#7a5c2e)}
+.p3{background:linear-gradient(135deg,#5B7A9D,#2b3d52)}
+.tile .cap{position:absolute;left:8px;bottom:6px;font-family:'Cinzel',serif;font-size:6.5px;letter-spacing:1.5px;color:rgba(255,255,255,0.9);text-shadow:0 1px 3px rgba(0,0,0,0.7)}
+.tile.done{background:rgba(168,179,122,0.16)}
+.tile.done .mark{font-size:26px;color:#A8B37A;line-height:1}
+.tile.done .sub{position:absolute;left:0;right:0;bottom:7px;text-align:center;font-style:italic;font-size:9px;color:rgba(255,255,255,0.78)}
+.tile.empty{background:rgba(255,255,255,0.045)}
+.tile.empty .dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.18)}
+.note{font-style:italic;font-size:12.5px;color:#aaa;margin-top:10px;text-align:center;line-height:1.6}
+</style>
+</head>
+<body>
+
+<div class="tag">THE ROLL, IF APPLE BUILT IT</div>
+<div class="phone">
+  <div class="eyebrow">TODAY · TOGETHER</div>
+
+  <div class="member">
+    <div class="mhead">
+      <div class="avwrap"><div class="ringbg" style="background:conic-gradient(#A8B37A 0 66%, rgba(255,255,255,0.1) 66% 100%)"></div><div class="av a1">R</div></div>
+      <div class="nm">Rubeiya</div><div class="cnt"><b>2</b> / 3</div>
+    </div>
+    <div class="tiles">
+      <div class="tile"><div class="ph p1"></div><div class="cap">RUN</div></div>
+      <div class="tile done"><div class="mark">✓</div><div class="sub">did it. no proof. trust.</div></div>
+      <div class="tile empty"><div class="dot"></div></div>
+    </div>
+  </div>
+
+  <div class="member">
+    <div class="mhead">
+      <div class="avwrap"><div class="ringbg" style="background:conic-gradient(#c8a96e 0 100%)"></div><div class="av a2">K</div></div>
+      <div class="nm">Kursheeth</div><div class="cnt won"><b>3</b> / 3 ✓</div>
+    </div>
+    <div class="tiles">
+      <div class="tile"><div class="ph p2"></div><div class="cap">RUN</div></div>
+      <div class="tile"><div class="ph p3"></div><div class="cap">READ</div></div>
+      <div class="tile"><div class="ph p1"></div><div class="cap">WATER</div></div>
+    </div>
+  </div>
+
+  <div class="member">
+    <div class="mhead">
+      <div class="avwrap"><div class="ringbg" style="background:conic-gradient(#7eb8c9 0 33%, rgba(255,255,255,0.1) 33% 100%)"></div><div class="av a3">S</div></div>
+      <div class="nm">Sanjana</div><div class="cnt"><b>1</b> / 3</div>
+    </div>
+    <div class="tiles">
+      <div class="tile done"><div class="mark">✓</div><div class="sub">camera was shy.</div></div>
+      <div class="tile empty"><div class="dot"></div></div>
+      <div class="tile empty"><div class="dot"></div></div>
+    </div>
+  </div>
+
+  <div class="note">the wound-up roll became the ring around the dp — it closes as the day fills ·<br/>posted pic = photo tile · logged-no-pic = tinted tile, big ✓, the penguin line whispered under it ·<br/>undone = a quiet dark tile with one dot · when a task logs, its tile SPRINGS out from behind the avatar<br/>(the unroll lives in the animation, not in drawn film)</div>
+
+</div>
+
+</body>
+</html>

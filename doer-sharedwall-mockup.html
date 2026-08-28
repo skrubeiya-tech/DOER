@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DOER · one wall, built together</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0 auto;background:#111;color:#EDEAE2;font-family:'Cormorant Garamond',Georgia,serif;max-width:430px;padding:22px 12px 60px}
+.tag{font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;color:#C2F03F;margin:30px 0 10px;text-align:center}
+.tag:first-child{margin-top:0}
+.phone{background:#0c0c0c;border:1px solid rgba(255,255,255,0.12);border-radius:22px;padding:20px 14px}
+.eyebrow{font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;color:rgba(255,255,255,0.78);text-align:center}
+.whisper{font-style:italic;font-size:12px;color:rgba(255,255,255,0.6);text-align:center;margin:4px 0 16px}
+/* legend */
+.legend{display:flex;justify-content:center;gap:18px;margin-bottom:16px}
+.lg{display:flex;align-items:center;gap:7px}
+.dp{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-weight:bold;font-size:11px;color:#0c0c0c}
+.d1{background:#A8B37A}.d2{background:#c8a96e}
+.lg .n{font-size:13.5px}
+.lg .c{font-variant-numeric:tabular-nums;font-size:13.5px;color:rgba(255,255,255,0.85)}
+/* hero today tile */
+.hero{width:150px;margin:0 auto 6px;border-radius:14px;overflow:hidden;position:relative;border:2px solid rgba(255,255,255,0.9);height:110px;display:flex}
+.hcol{flex:1;position:relative;background:rgba(255,255,255,0.03)}
+.hcol+.hcol{border-left:1.5px solid #0c0c0c}
+.hfill{position:absolute;left:0;right:0;bottom:0;transition:height .4s}
+.hcol .ini{position:absolute;top:5px;left:0;right:0;text-align:center;font-family:Georgia,serif;font-weight:bold;font-size:10px;color:rgba(255,255,255,0.8)}
+.heroCap{text-align:center;font-family:'Cinzel',serif;font-size:8px;letter-spacing:2px;color:rgba(255,255,255,0.78);margin-bottom:16px}
+.heroCap i{font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-size:11.5px;letter-spacing:0;color:rgba(255,255,255,0.6);display:block;margin-top:3px}
+/* the wall */
+.wall{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.t{aspect-ratio:0.9;border-radius:8px;overflow:hidden;position:relative;display:flex}
+.t .s{flex:1}
+.t .s+.s{border-left:1px solid #0c0c0c}
+.won{outline:1.5px solid rgba(194,240,63,0.45);outline-offset:-1.5px}
+.t .num{position:absolute;top:3px;left:0;right:0;text-align:center;font-family:Georgia,serif;font-weight:bold;font-size:10px;color:rgba(255,255,255,0.85);text-shadow:0 1px 2px rgba(0,0,0,0.6);z-index:2}
+.t.fut{opacity:0.45}
+.t.fut .s{background:rgba(255,255,255,0.03)}
+.t.today2{border:1.5px solid rgba(255,255,255,0.9)}
+.g1{background:rgba(168,179,122,0.62)}
+.g1m{background:rgba(158,155,96,0.30)}
+.g2{background:rgba(200,169,110,0.62)}
+.g2m{background:rgba(158,155,96,0.30)}
+.note{font-style:italic;font-size:12.5px;color:#aaa;margin-top:14px;text-align:center;line-height:1.6}
+</style>
+</head>
+<body>
+
+<div class="tag">ONE WALL, BUILT TOGETHER — two people, day 7 of 21</div>
+<div class="phone">
+  <div class="eyebrow">OUR WALL</div>
+  <div class="whisper">the wall seals at midnight</div>
+
+  <div class="legend">
+    <div class="lg"><div class="dp d1">R</div><div class="n">Rubeiya</div><div class="c">2/3</div></div>
+    <div class="lg"><div class="dp d2">K</div><div class="n">Kursheeth</div><div class="c">1/3</div></div>
+  </div>
+
+  <div class="hero">
+    <div class="hcol"><div class="ini">R</div><div class="hfill g1" style="height:66%"></div></div>
+    <div class="hcol"><div class="ini">K</div><div class="hfill g2" style="height:33%"></div></div>
+  </div>
+  <div class="heroCap">DAY 7 · TODAY<i>filling as you both log — 05:12 left</i></div>
+
+  <div class="wall">
+    <div class="t won"><div class="num">1</div><div class="s g1"></div><div class="s g2"></div></div>
+    <div class="t won"><div class="num">2</div><div class="s g1"></div><div class="s g2"></div></div>
+    <div class="t"><div class="num">3</div><div class="s g1"></div><div class="s g2m"></div></div>
+    <div class="t won"><div class="num">4</div><div class="s g1"></div><div class="s g2"></div></div>
+    <div class="t"><div class="num">5</div><div class="s g1m"></div><div class="s g2"></div></div>
+    <div class="t"><div class="num">6</div><div class="s g1"></div><div class="s g2m"></div></div>
+    <div class="t today2"><div class="num">7</div><div class="s" style="background:linear-gradient(0deg, rgba(168,179,122,0.62) 66%, rgba(255,255,255,0.03) 66%)"></div><div class="s" style="background:linear-gradient(0deg, rgba(200,169,110,0.62) 33%, rgba(255,255,255,0.03) 33%)"></div></div>
+    <div class="t fut"><div class="num">8</div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">9</div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">10</div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">11</div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">12</div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">13</div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">14</div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">15</div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">16</div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">17</div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">18</div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">19</div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">20</div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">21</div><div class="s"></div><div class="s"></div></div>
+  </div>
+
+  <div class="note">every day-tile is split — left strip Rubeiya, right strip Kursheeth ·<br/>a day BOTH finished gets the golden seam (days 1, 2, 4 — days won together) ·<br/>a missed half goes quiet olive, never a scar · today's tile FILLS LIVE, bottom-up,<br/>as each of you ticks — the hero tile above is today magnified ·<br/>ticks alone build all of this — photos never owed anywhere</div>
+</div>
+
+<div class="note">Two people = two generous strips. Four friends = four slimmer strips, same wall.<br/>It is your locked journey-wall design, finally shared — one wall the whole group is laying bricks in.</div>
+
+<div class="tag">THE SAME WALL — SIX FRIENDS, DAY 7 OF 21</div>
+<div class="phone">
+  <div class="eyebrow">OUR WALL</div>
+  <div class="whisper">the wall seals at midnight</div>
+
+  <div class="legend" style="flex-wrap:wrap;gap:10px 14px">
+    <div class="lg"><div class="dp d1">R</div><div class="c">3/3</div></div>
+    <div class="lg"><div class="dp d2">K</div><div class="c">1/3</div></div>
+    <div class="lg"><div class="dp" style="background:#7eb8c9">S</div><div class="c">2/3</div></div>
+    <div class="lg"><div class="dp" style="background:#a78bfa">A</div><div class="c">0/3</div></div>
+    <div class="lg"><div class="dp" style="background:#d78f9a">N</div><div class="c">3/3</div></div>
+    <div class="lg"><div class="dp" style="background:#6fb3a0">V</div><div class="c">2/3</div></div>
+  </div>
+
+  <div class="hero" style="width:216px">
+    <div class="hcol"><div class="ini">R</div><div class="hfill" style="height:100%;background:rgba(168,179,122,0.62)"></div></div>
+    <div class="hcol"><div class="ini">K</div><div class="hfill" style="height:33%;background:rgba(200,169,110,0.62)"></div></div>
+    <div class="hcol"><div class="ini">S</div><div class="hfill" style="height:66%;background:rgba(126,184,201,0.55)"></div></div>
+    <div class="hcol"><div class="ini">A</div><div class="hfill" style="height:0%;background:rgba(167,139,250,0.55)"></div></div>
+    <div class="hcol"><div class="ini">N</div><div class="hfill" style="height:100%;background:rgba(215,143,154,0.55)"></div></div>
+    <div class="hcol"><div class="ini">V</div><div class="hfill" style="height:66%;background:rgba(111,179,160,0.55)"></div></div>
+  </div>
+  <div class="heroCap">DAY 7 · TODAY<i>two of six already sealed — 05:12 left</i></div>
+
+  <div class="wall">
+    <div class="t won"><div class="num">1</div><div class="s" style="background:rgba(168,179,122,0.62)"></div><div class="s" style="background:rgba(200,169,110,0.62)"></div><div class="s" style="background:rgba(126,184,201,0.55)"></div><div class="s" style="background:rgba(167,139,250,0.55)"></div><div class="s" style="background:rgba(215,143,154,0.55)"></div><div class="s" style="background:rgba(111,179,160,0.55)"></div></div>
+    <div class="t"><div class="num">2</div><div class="s" style="background:rgba(168,179,122,0.62)"></div><div class="s" style="background:rgba(158,155,96,0.30)"></div><div class="s" style="background:rgba(126,184,201,0.55)"></div><div class="s" style="background:rgba(158,155,96,0.30)"></div><div class="s" style="background:rgba(215,143,154,0.55)"></div><div class="s" style="background:rgba(111,179,160,0.55)"></div></div>
+    <div class="t"><div class="num">3</div><div class="s" style="background:rgba(168,179,122,0.62)"></div><div class="s" style="background:rgba(200,169,110,0.62)"></div><div class="s" style="background:rgba(158,155,96,0.30)"></div><div class="s" style="background:rgba(158,155,96,0.30)"></div><div class="s" style="background:rgba(215,143,154,0.55)"></div><div class="s" style="background:rgba(158,155,96,0.30)"></div></div>
+    <div class="t won"><div class="num">4</div><div class="s" style="background:rgba(168,179,122,0.62)"></div><div class="s" style="background:rgba(200,169,110,0.62)"></div><div class="s" style="background:rgba(126,184,201,0.55)"></div><div class="s" style="background:rgba(167,139,250,0.55)"></div><div class="s" style="background:rgba(215,143,154,0.55)"></div><div class="s" style="background:rgba(111,179,160,0.55)"></div></div>
+    <div class="t"><div class="num">5</div><div class="s" style="background:rgba(158,155,96,0.30)"></div><div class="s" style="background:rgba(200,169,110,0.62)"></div><div class="s" style="background:rgba(126,184,201,0.55)"></div><div class="s" style="background:rgba(158,155,96,0.30)"></div><div class="s" style="background:rgba(215,143,154,0.55)"></div><div class="s" style="background:rgba(111,179,160,0.55)"></div></div>
+    <div class="t"><div class="num">6</div><div class="s" style="background:rgba(168,179,122,0.62)"></div><div class="s" style="background:rgba(158,155,96,0.30)"></div><div class="s" style="background:rgba(126,184,201,0.55)"></div><div class="s" style="background:rgba(167,139,250,0.55)"></div><div class="s" style="background:rgba(158,155,96,0.30)"></div><div class="s" style="background:rgba(111,179,160,0.55)"></div></div>
+    <div class="t today2"><div class="num">7</div><div class="s" style="background:linear-gradient(0deg, rgba(168,179,122,0.62) 100%, rgba(255,255,255,0.03) 0%)"></div><div class="s" style="background:linear-gradient(0deg, rgba(200,169,110,0.62) 33%, rgba(255,255,255,0.03) 33%)"></div><div class="s" style="background:linear-gradient(0deg, rgba(126,184,201,0.55) 66%, rgba(255,255,255,0.03) 66%)"></div><div class="s" style="background:rgba(255,255,255,0.03)"></div><div class="s" style="background:linear-gradient(0deg, rgba(215,143,154,0.55) 100%, rgba(255,255,255,0.03) 0%)"></div><div class="s" style="background:linear-gradient(0deg, rgba(111,179,160,0.55) 66%, rgba(255,255,255,0.03) 66%)"></div></div>
+    <div class="t fut"><div class="num">8</div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">9</div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">10</div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">11</div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">12</div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">13</div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div></div>
+    <div class="t fut"><div class="num">14</div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div><div class="s"></div></div>
+  </div>
+
+  <div class="note">six strips per tile — the wall turns into woven fabric ·<br/>the hero today tile grows wider (six columns, initials on top) and becomes the group's<br/>live scoreboard · won-together days still take the golden seam · rows 15–21 trimmed here for space</div>
+</div>
+
+<div class="tag">THE SAME WALL — TWELVE PEOPLE</div>
+<div class="phone">
+  <div class="eyebrow">OUR WALL</div>
+  <div class="whisper">the wall seals at midnight</div>
+  <div id="w12legend" class="legend" style="flex-wrap:wrap;gap:8px 12px"></div>
+  <div id="w12hero" class="hero" style="width:100%;max-width:340px;height:96px"></div>
+  <div class="heroCap">DAY 7 · TODAY<i>five of twelve already sealed — 05:12 left</i></div>
+  <div id="w12wall" class="wall"></div>
+  <div class="note">twelve threads per tile — pure tapestry; individual strips become texture,<br/>and the hero tile carries the readable scoreboard (initials, live columns) ·<br/>past twelve, this hero + texture pairing IS the community look — one design, every size</div>
+</div>
+<script>
+(function(){
+ var cols=["#A8B37A","#c8a96e","#7eb8c9","#a78bfa","#d78f9a","#6fb3a0","#c96f4a","#8fa3d9","#b3924a","#7E9C88","#9C8AB0","#5B7A9D"];
+ var inis=["R","K","S","A","N","V","M","J","T","P","L","D"];
+ var fills=[3,1,2,0,3,2,3,1,0,2,3,2]; // today of 3
+ var lg=document.getElementById("w12legend");
+ for(var i=0;i<12;i++){ lg.innerHTML+='<div class="lg"><div class="dp" style="background:'+cols[i]+'">'+inis[i]+'</div><div class="c">'+fills[i]+'/3</div></div>'; }
+ var hero=document.getElementById("w12hero");
+ for(var i=0;i<12;i++){ var h=Math.round(fills[i]/3*100); hero.innerHTML+='<div class="hcol"><div class="ini" style="font-size:8px">'+inis[i]+'</div><div class="hfill" style="height:'+h+'%;background:'+cols[i]+'99"></div></div>'; }
+ var wall=document.getElementById("w12wall");
+ var hist=[[1,1,1,1,1,1,1,1,1,1,1,1],[1,0,1,1,0,1,1,1,0,1,1,1],[1,1,0,1,1,1,0,1,1,0,1,1],[1,1,1,1,1,1,1,1,1,1,1,1],[0,1,1,0,1,1,1,0,1,1,1,0],[1,1,1,0,1,0,1,1,1,1,0,1]];
+ for(var d=1;d<=14;d++){ var cls="t", inner="";
+  if(d<7){ var row=hist[d-1]; var won=row.every(function(x){return x;}); cls+= won?" won":"";
+   for(var i=0;i<12;i++){ inner+='<div class="s" style="background:'+(row[i]?cols[i]+"99":"rgba(158,155,96,0.30)")+'"></div>'; } }
+  else if(d===7){ cls+=" today2";
+   for(var i=0;i<12;i++){ var p=Math.round(fills[i]/3*100); inner+='<div class="s" style="background:linear-gradient(0deg,'+cols[i]+'99 '+p+'%, rgba(255,255,255,0.03) '+p+'%)"></div>'; } }
+  else { cls+=" fut"; for(var i=0;i<12;i++){ inner+='<div class="s"></div>'; } }
+  wall.innerHTML+='<div class="'+cls+'"><div class="num">'+d+'</div>'+inner+'</div>'; }
+})();
+</script>
+
+</body>
+</html>

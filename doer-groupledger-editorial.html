@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>DOER · the group register, editorial</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+body{margin:0 auto;background:#111;color:#EDEAE2;font-family:'Cormorant Garamond',Georgia,serif;max-width:430px;padding:22px 12px 60px}
+.tag{font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;color:#C2F03F;margin:30px 0 10px;text-align:center}
+.tag:first-child{margin-top:0}
+.phone{background:#0c0c0c;border:1px solid rgba(255,255,255,0.12);border-radius:22px;padding:20px 16px}
+.eyebrow{font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;color:rgba(255,255,255,0.78);text-align:center;margin-bottom:18px}
+.dp{width:30px;height:30px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-family:Georgia,serif;font-weight:bold;font-size:13px;color:#0c0c0c}
+.d1{background:#A8B37A}.d2{background:#c8a96e}.d3{background:#7eb8c9}.d4{background:#a78bfa}
+.nm{font-size:15px;color:#EDEAE2}
+.num{font-variant-numeric:tabular-nums;font-size:15px;color:rgba(255,255,255,0.85)}
+.num b{font-weight:600}
+/* D · the ink rule: hairline that fills with ink */
+.drow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.07)}
+.drow:last-child{border-bottom:none}
+.rule{flex:1;height:2px;background:rgba(255,255,255,0.08);position:relative;border-radius:1px}
+.rule i{position:absolute;left:0;top:0;bottom:0;border-radius:1px}
+/* E · dotted leaders like a table of contents */
+.erow{display:flex;align-items:baseline;gap:10px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.07)}
+.erow:last-child{border-bottom:none}
+.edp{width:26px;height:26px;font-size:11.5px;align-self:center}
+.enm{font-size:16px;font-style:italic}
+.lead{flex:1;border-bottom:2px dotted rgba(255,255,255,0.14);margin:0 2px;position:relative;top:-4px}
+.lead i{position:absolute;left:0;bottom:-2px;border-bottom:2px dotted;width:0}
+.l1{border-color:#A8B37A}.l2{border-color:#c8a96e}.l3{border-color:#7eb8c9}
+/* F · check column: serif ticks per task */
+.frow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.07)}
+.frow:last-child{border-bottom:none}
+.ticks{flex:1;display:flex;gap:14px;justify-content:flex-end;font-size:16px}
+.tick{width:18px;text-align:center}
+.on{color:#A8B37A}.off{color:rgba(255,255,255,0.15)}
+.won .nm,.won .num{color:#6ee7b7}
+.note{font-style:italic;font-size:12.5px;color:#aaa;margin-top:10px;text-align:center;line-height:1.55}
+</style>
+</head>
+<body>
+
+<div class="tag">D · THE INK RULE — a hairline fills as tasks log</div>
+<div class="phone">
+  <div class="eyebrow">TODAY · TOGETHER</div>
+  <div class="drow"><div class="dp d2">K</div><div class="nm">Kursheeth</div><div class="rule"><i style="width:100%;background:#c8a96e"></i></div><div class="num"><b>3</b> / 3</div></div>
+  <div class="drow"><div class="dp d1">R</div><div class="nm">Rubeiya</div><div class="rule"><i style="width:66%;background:#A8B37A"></i></div><div class="num"><b>2</b> / 3</div></div>
+  <div class="drow"><div class="dp d3">S</div><div class="nm">Sanjana</div><div class="rule"><i style="width:33%;background:#7eb8c9"></i></div><div class="num"><b>1</b> / 3</div></div>
+  <div class="drow"><div class="dp d4">A</div><div class="nm">Abhi</div><div class="rule"></div><div class="num"><b>0</b> / 3</div></div>
+</div>
+
+<div class="tag">E · THE CONTENTS PAGE — dotted leaders ink in</div>
+<div class="phone">
+  <div class="eyebrow">TODAY · TOGETHER</div>
+  <div class="erow"><div class="dp edp d2">K</div><div class="enm">Kursheeth</div><div class="lead"><i class="l2" style="width:100%"></i></div><div class="num"><b>3</b> / 3</div></div>
+  <div class="erow"><div class="dp edp d1">R</div><div class="enm">Rubeiya</div><div class="lead"><i class="l1" style="width:66%"></i></div><div class="num"><b>2</b> / 3</div></div>
+  <div class="erow"><div class="dp edp d3">S</div><div class="enm">Sanjana</div><div class="lead"><i class="l3" style="width:33%"></i></div><div class="num"><b>1</b> / 3</div></div>
+  <div class="erow"><div class="dp edp d4">A</div><div class="enm">Abhi</div><div class="lead"></div><div class="num"><b>0</b> / 3</div></div>
+  <div class="note">like a table of contents — the dotted line inks in color as the day gets logged</div>
+</div>
+
+<div class="tag">F · THE CHECK COLUMN — one serif tick per task</div>
+<div class="phone">
+  <div class="eyebrow">TODAY · TOGETHER</div>
+  <div class="frow won"><div class="dp d2">K</div><div class="nm">Kursheeth</div><div class="ticks"><span class="tick on">✓</span><span class="tick on">✓</span><span class="tick on">✓</span></div><div class="num"><b>3</b> / 3</div></div>
+  <div class="frow"><div class="dp d1">R</div><div class="nm">Rubeiya</div><div class="ticks"><span class="tick on">✓</span><span class="tick on">✓</span><span class="tick off">·</span></div><div class="num"><b>2</b> / 3</div></div>
+  <div class="frow"><div class="dp d3">S</div><div class="nm">Sanjana</div><div class="ticks"><span class="tick on">✓</span><span class="tick off">·</span><span class="tick off">·</span></div><div class="num"><b>1</b> / 3</div></div>
+  <div class="frow"><div class="dp d4">A</div><div class="nm">Abhi</div><div class="ticks"><span class="tick off">·</span><span class="tick off">·</span><span class="tick off">·</span></div><div class="num"><b>0</b> / 3</div></div>
+  <div class="note">a register page — every task a visible tick, a finished row turns green</div>
+</div>
+
+<div class="note">Same idea as before — dp, growing line, count — but in DOER's book voice:<br/>hairlines instead of tubes, serif numerals, italic names, quiet ink.</div>
+
+</body>
+</html>
