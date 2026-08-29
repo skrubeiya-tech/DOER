@@ -179,3 +179,6 @@ The join link (`?join=CODE` in all three WhatsApp shares) + consent sheet + land
 2. **Android App Links**: host `/.well-known/assetlinks.json` (package name + SHA-256 signing cert fingerprint from Play Console); add intent-filter with autoVerify in the Capacitor Android manifest.
 3. **Domain swap**: share messages hardcode `https://skrubeiya-tech.github.io/DOER/?join=` in 3 places — one-string change to `https://beingdoer.com/?join=` once the domain serves the app (remember: domain auto-renew is OFF, renew before Aug 10 2027).
 4. In-app: the same boot logic (`doer_pending_join` stash → consent sheet → join → doer_home land) runs unchanged inside Capacitor — verify once on TestFlight that the WebView receives the launch URL (Capacitor App plugin `appUrlOpen` may need to feed location or the stash manually).
+
+## Aug 29 close: she committed to creating BOTH developer accounts on Aug 30
+Apple Developer ($99, 1-2 day approval) + Play Console ($25, starts the 14-day/12-tester clock). Android testers recruitment still open. v0605-444 live: art-directed challenges screen, app-wide chrome, group doorway + lobby (seconds, facepile, labeled invite code, WhatsApp join link + consent sheet + land-in-room, silhouette dp system).
