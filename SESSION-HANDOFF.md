@@ -182,3 +182,6 @@ The join link (`?join=CODE` in all three WhatsApp shares) + consent sheet + land
 
 ## Aug 29 close: she committed to creating BOTH developer accounts on Aug 30
 Apple Developer ($99, 1-2 day approval) + Play Console ($25, starts the 14-day/12-tester clock). Android testers recruitment still open. v0605-444 live: art-directed challenges screen, app-wide chrome, group doorway + lobby (seconds, facepile, labeled invite code, WhatsApp join link + consent sheet + land-in-room, silhouette dp system).
+
+## Launch-time addition (Aug 30): peek haptics
+When the Capacitor shell lands: add Haptics plugin, fire a light impact each time the task-photo peek swaps photos (peek idx change in _TaskMoments), plus optionally on task tick and day-complete. One-liner per site; Safari cannot do this, the shell can.
