@@ -1,6 +1,6 @@
 // DOER Service Worker — network-first for HTML/JS with offline cache fallback,
 // cache-first for static assets, passthrough for cross-origin (Supabase, etc.)
-const VERSION = 'doer-v0605-489';
+const VERSION = 'doer-v0605-490';
 const ASSETCACHE = 'doer-cdn-assets-v1'; // fonts + CDN libs: cache-first, survives version bumps
 const PRECACHE = ['./', 'index.html', 'manifest.json', 'fonts/Cinzel-400-latin-ext.woff2', 'fonts/Cinzel-400-latin.woff2', 'fonts/Cinzel-600-latin-ext.woff2', 'fonts/Cinzel-600-latin.woff2', 'fonts/CormorantGaramond-300-latin-ext.woff2', 'fonts/CormorantGaramond-300-latin.woff2', 'fonts/CormorantGaramond-300i-latin-ext.woff2', 'fonts/CormorantGaramond-300i-latin.woff2', 'fonts/CormorantGaramond-400-latin-ext.woff2', 'fonts/CormorantGaramond-400-latin.woff2', 'fonts/CormorantGaramond-400i-latin-ext.woff2', 'fonts/CormorantGaramond-400i-latin.woff2', 'fonts/CormorantGaramond-600-latin-ext.woff2', 'fonts/CormorantGaramond-600-latin.woff2', 'fonts/fonts.css', 'icon-192.png', 'icon-512.png', 'icon-512-maskable.png', 'apple-touch-icon.png', 'penguin.png', 'penguin-walk.png', 'penguin-curls.png', 'penguin-idle.png', 'penguin-idle-night.png', 'penguin-walk-night.png', 'penguin-carrot.png', 'penguin-carrot-night.png', 'penguin-curls-night.png', 'penguin-box-night.png', 'penguin-box.png'];
 
