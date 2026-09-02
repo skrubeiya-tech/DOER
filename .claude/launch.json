@@ -2,10 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "serve (static)",
-      "runtimeExecutable": "/bin/sh",
-      "runtimeArgs": ["-c", "exec /usr/bin/python3 -m http.server ${PORT:-8000}"],
-      "autoPort": true
+      "name": "doer-sandbox",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "3000"],
+      "port": 3000
     }
   ]
 }
