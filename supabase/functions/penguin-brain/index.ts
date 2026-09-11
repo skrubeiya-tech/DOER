@@ -49,6 +49,21 @@ Deno.serve(async (req) => {
     const raw = await req.text();
     if (raw.length > 14000) return new Response(JSON.stringify({ line: null }), { headers });
     const ctx = JSON.parse(raw);
+    // Emoji mode: pick one emoji for a task name (any language). Tiny, cached client-side.
+    if (ctx && ctx.mode === "emoji") {
+      const nm = String(ctx.name || "").slice(0, 60).trim();
+      if (!nm) return new Response(JSON.stringify({ emoji: null }), { headers });
+      const em = await client.messages.create({
+        model: "claude-haiku-4-5",
+        max_tokens: 10,
+        system: "You pick ONE emoji that best represents a habit/task name (any language). Reply with exactly one emoji character and nothing else. Never reply with a checkmark, tick, or text.",
+        messages: [{ role: "user", content: nm }],
+      });
+      const eb = em.content.find((b: { type: string }) => b.type === "text") as { text?: string } | undefined;
+      let ev = (eb?.text || "").trim().split(/\s+/)[0] || "";
+      if (ev.length > 8 || /[A-Za-z0-9]/.test(ev)) ev = "";
+      return new Response(JSON.stringify({ emoji: ev || null }), { headers });
+    }
     // Only pass through known small fields — nothing else reaches the model
     const safe = {
       score: Number(ctx.score) || 0,
@@ -94,6 +109,7 @@ Deno.serve(async (req) => {
     const line: string | null = cleaned.length > 0 ? cleaned : null;
     return new Response(JSON.stringify({ line }), { headers });
   } catch (_e) {
+    console.error("peng-fail", _e instanceof Error ? (_e.message + " :: " + String(_e.stack||"").slice(0,300)) : String(_e));
     // Any failure -> null; the app falls back to canned lines
     return new Response(JSON.stringify({ line: null }), { headers });
   }
